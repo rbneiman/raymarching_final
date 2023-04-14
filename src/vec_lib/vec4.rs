@@ -1,37 +1,36 @@
 use std::ops::{Index, IndexMut};
 use auto_ops::*;
 use crate::vec_lib::vec2::Vec2f;
-use crate::vec_lib::vec4::Vec4f;
+use crate::vec_lib::vec3::Vec3f;
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct Vec3f{
+pub struct Vec4f{
     x: f32,
     y: f32,
     z: f32,
+    w: f32,
 }
 
-pub static ZERO : Vec3f = Vec3f::new(0f32,0f32,0f32);
+pub static ZERO : Vec4f = Vec4f::new(0f32,0f32,0f32,0f32);
 
-impl Vec3f{
-    pub const fn new(x:f32, y:f32, z:f32) -> Self{
-        return Vec3f{x,y,z};
-    }
-
-    pub fn to_vec4(&self, w:f32) -> Vec4f{
-        Vec4f::new(self.x, self.y, self.z, w)
+impl Vec4f{
+    pub const fn new(x:f32, y:f32, z:f32, w:f32) -> Self{
+        return Vec4f{x,y,z,w};
     }
 
     pub fn add(&self, other: &Self) -> Self{
         return Self::new(
         self.x + other.x,
         self.y + other.y,
-        self.z + other.z)
+        self.z + other.z,
+        self.w + other.w)
     }
 
     pub fn add_mut(&mut self, other: &Self) -> &mut Self{
         self.x += other.x;
         self.y += other.y;
         self.z += other.z;
+        self.w += other.w;
         self
     }
 
@@ -39,13 +38,15 @@ impl Vec3f{
         return Self::new(
         self.x - other.x,
         self.y - other.y,
-        self.z - other.z)
+        self.z - other.z,
+        self.w - other.w)
     }
 
     pub fn sub_mut(&mut self, other: &Self) -> &mut Self{
         self.x -= other.x;
         self.y -= other.y;
         self.z -= other.z;
+        self.w -= other.w;
         self
     }
 
@@ -53,13 +54,15 @@ impl Vec3f{
         return Self::new(
         self.x * val,
         self.y * val,
-        self.z * val)
+        self.z * val,
+        self.w * val)
     }
 
     pub fn scale_mut(&mut self, val: f32) -> &mut Self{
         self.x *= val;
         self.y *= val;
         self.z *= val;
+        self.w *= val;
         self
     }
 
@@ -67,7 +70,8 @@ impl Vec3f{
         return Self::new(
             -self.x,
             -self.y,
-            -self.z
+            -self.z,
+            -self.w
         )
     }
 
@@ -75,6 +79,7 @@ impl Vec3f{
         self.x = -self.x;
         self.y = -self.y;
         self.z = -self.z;
+        self.w = -self.w;
         self
     }
 
@@ -89,33 +94,20 @@ impl Vec3f{
     }
 
     pub fn length(&self) -> f32{
-        f32::sqrt(self.x*self.x + self.y*self.y + self.z*self.z)
+        f32::sqrt(self.x*self.x + self.y*self.y + self.z*self.z + self.w*self.w)
     }
 
     pub fn squared_length(&self) -> f32{
-        self.x*self.x + self.y*self.y + self.z*self.z
+        self.x*self.x + self.y*self.y + self.z*self.z + self.w*self.w
     }
 
     pub fn dot(&self, other: &Self) -> f32{
-        self.x * other.x + self.y * other.y + self.z * other.z
+        self.x * other.x + self.y * other.y + self.z * other.z + self.w*other.w
     }
 
-    pub fn cross(&self, other: &Self) -> Self{
-        Self::new(
-            self.y * other.z - self.z * other.y,
-            self.z * other.x - self.x * other.z,
-            self.x * other.y - self.y * other.x
-        )
-    }
-
-    pub fn cross_mut(&mut self, other: &Self) -> &mut Self{
-        let res = self.cross(other);
-        *self = res;
-        self
-    }
 }
 
-impl Index<isize> for Vec3f{
+impl Index<isize> for Vec4f{
     type Output = f32;
 
     fn index(&self, index: isize) -> &Self::Output {
@@ -129,6 +121,9 @@ impl Index<isize> for Vec3f{
             2=>{
                 &self.z
             },
+            3=>{
+                &self.w
+            },
             _ =>{
                 panic!();
             }
@@ -136,7 +131,7 @@ impl Index<isize> for Vec3f{
     }
 }
 
-impl IndexMut<isize> for Vec3f{
+impl IndexMut<isize> for Vec4f{
 
     fn index_mut(&mut self, index: isize) -> &mut Self::Output {
         match index {
@@ -149,6 +144,9 @@ impl IndexMut<isize> for Vec3f{
             2 =>{
                 &mut self.z
             },
+            3 =>{
+                &mut self.w
+            },
             _ =>{
                 panic!();
             }
@@ -156,17 +154,17 @@ impl IndexMut<isize> for Vec3f{
     }
 }
 
-impl_op_ex!(+ |a: &Vec3f, b: &Vec3f| -> Vec3f {a.add(b)});
-impl_op_ex!(+= |a: &mut Vec3f, b: &Vec3f| {a.add_mut(b);});
+impl_op_ex!(+ |a: &Vec4f, b: &Vec4f| -> Vec4f {a.add(b)});
+impl_op_ex!(+= |a: &mut Vec4f, b: &Vec4f| {a.add_mut(b);});
 
-impl_op_ex!(- |a: &Vec3f, b: &Vec3f| -> Vec3f {a.sub(b)});
-impl_op_ex!(-= |a: &mut Vec3f, b: &Vec3f| {a.sub_mut(b);});
-impl_op_ex!(- |a: &Vec3f| -> Vec3f {a.negate()});
+impl_op_ex!(- |a: &Vec4f, b: &Vec4f| -> Vec4f {a.sub(b)});
+impl_op_ex!(-= |a: &mut Vec4f, b: &Vec4f| {a.sub_mut(b);});
+impl_op_ex!(- |a: &Vec4f| -> Vec4f {a.negate()});
 
-impl_op_ex_commutative!(* |a: &Vec3f, b: f32| -> Vec3f {a.scale(b)});
-impl_op_ex!(*= |a: &mut Vec3f, b: f32| {a.scale_mut(b);});
+impl_op_ex_commutative!(* |a: &Vec4f, b: f32| -> Vec4f {a.scale(b)});
+impl_op_ex!(*= |a: &mut Vec4f, b: f32| {a.scale_mut(b);});
 
-impl Vec3f{
+impl Vec4f {
     #[inline]
     pub fn x(&self) -> f32{
         self.x
@@ -198,6 +196,16 @@ impl Vec3f{
     }
 
     #[inline]
+    pub fn w(&self) -> f32{
+        self.w
+    }
+
+    #[inline]
+    pub fn w_mut(&mut self) -> &mut f32{
+        &mut self.w
+    }
+
+    #[inline]
     pub fn xy(&self) -> Vec2f{
         Vec2f::new(self.x, self.y)
     }
@@ -225,5 +233,65 @@ impl Vec3f{
     #[inline]
     pub fn zy(&self) -> Vec2f{
         Vec2f::new(self.z, self.y)
+    }
+
+    #[inline]
+    pub fn xw(&self) -> Vec2f{
+        Vec2f::new(self.x, self.w)
+    }
+
+    #[inline]
+    pub fn yw(&self) -> Vec2f{
+        Vec2f::new(self.y, self.w)
+    }
+
+    #[inline]
+    pub fn zw(&self) -> Vec2f{
+        Vec2f::new(self.z, self.w)
+    }
+
+    #[inline]
+    pub fn wx(&self) -> Vec2f{
+        Vec2f::new(self.w, self.x)
+    }
+
+    #[inline]
+    pub fn wy(&self) -> Vec2f{
+        Vec2f::new(self.w, self.y)
+    }
+
+    #[inline]
+    pub fn wz(&self) -> Vec2f{
+        Vec2f::new(self.w, self.z)
+    }
+
+    #[inline]
+    pub fn xyz(&self) -> Vec3f{
+        Vec3f::new(self.x, self.y, self.z)
+    }
+
+    #[inline]
+    pub fn xzy(&self) -> Vec3f{
+        Vec3f::new(self.x, self.z, self.y)
+    }
+
+    #[inline]
+    pub fn yxz(&self) -> Vec3f{
+        Vec3f::new(self.y, self.x, self.z)
+    }
+
+    #[inline]
+    pub fn yzx(&self) -> Vec3f{
+        Vec3f::new(self.y, self.z, self.x)
+    }
+
+    #[inline]
+    pub fn zxy(&self) -> Vec3f{
+        Vec3f::new(self.z, self.x, self.y)
+    }
+
+    #[inline]
+    pub fn zyx(&self) -> Vec3f{
+        Vec3f::new(self.z, self.y, self.x)
     }
 }
