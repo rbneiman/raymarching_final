@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use std::ops::{Index, IndexMut};
 use auto_ops::*;
 use crate::vec_lib::mat3;
@@ -32,6 +33,133 @@ pub static IDENTITY: Mat4f = Mat4f::new([
 impl Mat4f {
     pub const fn new(vals: [f32; 16]) -> Self {
         Mat4f { vals }
+    }
+
+    pub fn frustum(
+        left:   f32,
+        right:  f32,
+        bottom: f32,
+        top:    f32,
+        near:   f32,
+        far:    f32
+    ) -> Self{
+        let diff_rl = right - left;
+        let diff_tb = top - bottom;
+        let diff_fn = far - near;
+
+        Self::new([
+            (near * 2.0f32) / diff_rl,
+            0.0f32,
+            (left + right) / diff_rl,
+            0.0f32,
+
+            0.0f32,
+            (near * 2.0f32) / diff_tb,
+            (top + bottom) / diff_tb,
+            0.0f32,
+
+            0.0f32,
+            0.0f32,
+            -(far + near) / diff_fn,
+            -(far * near * 2.0f32) / diff_fn,
+
+            0.0f32,
+            0.0f32,
+            -1.0f32,
+            0.0f32,
+        ])
+    }
+
+   /// Computes the perspective matrix from the given inputs.
+   ///  # Arguments
+   ///
+   /// * 'fov' - The field of view in degrees
+   /// * 'aspect' - The aspect ratio (width/height)
+   /// * 'near' - Distance to the near clipping plane
+   /// * 'far' - Distance to the far clipping plane
+   ///
+    pub fn perspective(
+        fov:    f32,
+        aspect: f32,
+        near:   f32,
+        far:    f32
+    )-> Self{
+        let top = near * f32::tan((fov * PI) / 360.0f32);
+        let right = top * aspect;
+
+        Self::frustum(-right, right, -top, top, near, far)
+    }
+
+    pub fn orthographic(
+        left:   f32,
+        right:  f32,
+        bottom: f32,
+        top:    f32,
+        near:   f32,
+        far:    f32
+    ) -> Self{
+        let diff_rl = right - left;
+        let diff_tb = top - bottom;
+        let diff_fn = far - near;
+
+        Self::new([
+            2.0f32 / diff_rl,
+            0.0f32,
+            0.0f32,
+            -(left + right) / diff_rl,
+
+            0.0f32,
+            2.0f32 / diff_tb,
+            0.0f32,
+            -(top + bottom) / diff_tb,
+
+            0.0f32,
+            0.0f32,
+            -2.0f32 / diff_fn,
+            -(far + near) / diff_fn,
+
+            0.0f32,
+            0.0f32,
+            0.0f32,
+            1.0f32
+        ])
+    }
+
+    pub fn look_at(position: &Vec3f, target: &Vec3f, up: &Vec3f) -> Self{
+        if position == target {
+            let mut out = Self::new([0.0f32;16]);
+            out.vals[0] = 1.0f32;
+            out.vals[5] = 1.0f32;
+            out.vals[10] = 1.0f32;
+            out.vals[15] = 1.0f32;
+            return out;
+        }
+
+        let z = position.sub(target).normalize();
+        let x = up.cross(&z).normalize();
+        let y = z.cross(&x).normalize();
+
+        Self::new([
+            x.x(),
+            x.y(),
+            x.z(),
+            -x.dot(position),
+
+            y.x(),
+            y.y(),
+            y.z(),
+            -y.dot(position),
+
+            z.x(),
+            z.y(),
+            z.z(),
+            -z.dot(position),
+
+            0.0f32,
+            0.0f32,
+            0.0f32,
+            1.0f32,
+        ])
     }
 
     pub fn add_mat4(&self, other: &Self) -> Self{
