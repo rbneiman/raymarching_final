@@ -39,7 +39,11 @@ features = [
     "console",
     "WebGl2RenderingContext",
     "WebGlProgram",
-    "WebGlShader"
+    "WebGlShader",
+    "WebGlTexture",
+    "WebGlUniformLocation",
+    "WebGlVertexArrayObject",
+    "WebGlBuffer",
 ]
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
