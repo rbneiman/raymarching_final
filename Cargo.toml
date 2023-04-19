@@ -23,6 +23,7 @@ lto = true
 #default = ["wee_alloc"]
 
 [dependencies]
+js-sys = "0.3.22"
 auto_ops = "0.3.0"
 # The `wasm-bindgen` crate provides the bare minimum functionality needed
 # to interact with JavaScript.
@@ -59,5 +60,4 @@ console_error_panic_hook = "0.1.5"
 [dev-dependencies]
 wasm-bindgen-test = "0.3.34"
 futures = "0.3.28"
-js-sys = "0.3.22"
 wasm-bindgen-futures = "0.4.34"
