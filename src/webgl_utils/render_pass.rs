@@ -1,4 +1,12 @@
-use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlTexture, WebGlUniformLocation, WebGlVertexArrayObject};
+use web_sys::{
+    WebGl2RenderingContext,
+    WebGlBuffer,
+    WebGlProgram,
+    WebGlTexture,
+    WebGlUniformLocation,
+    WebGlVertexArrayObject
+};
+use js_sys::{Float32Array, WebAssembly, Uint32Array};
 
 struct UnloadedTextureConfig{
     name: String,
@@ -7,6 +15,7 @@ struct UnloadedTextureConfig{
 
 struct LoadedTextureConfig{
     name: String,
+    texture: WebGlTexture
 }
 
 struct TextureInstance{
@@ -17,11 +26,16 @@ struct TextureInstance{
 }
 
 struct AttributeConfig{
+    name: String,
+    size: u32,
+    size_type: u32,
 
 }
 
 struct Attribute{
-
+    name: String,
+    location: WebGlUniformLocation,
+    buffer: WebGlBuffer
 }
 
 struct UniformConfig{
@@ -40,7 +54,8 @@ pub struct RenderPassConfig{
     attributes: Vec<AttributeConfig>,
     uniforms: Vec<UniformConfig>,
     textures_unloaded: Vec<UnloadedTextureConfig>,
-    textures_loaded: Vec<LoadedTextureConfig>
+    textures_loaded: Vec<LoadedTextureConfig>,
+    index_buffer_data: Uint32Array,
 }
 
 pub struct RenderPass{
@@ -51,16 +66,18 @@ pub struct RenderPass{
     attributes: Vec<Attribute>,
     uniforms: Vec<Uniform>,
     textures: Vec<TextureInstance>,
+    index_buffer_data: Uint32Array
 }
 
 impl RenderPassConfig{
-    pub fn new() -> Self{
-
-    }
-
-    pub fn configure() -> RenderPass{
-
-    }
+    // pub fn new() -> Self{
+    //
+    // }
+    //
+    //
+    // pub fn configure(self) -> RenderPass{
+    //
+    // }
 }
 
 impl RenderPass{

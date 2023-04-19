@@ -1,6 +1,6 @@
 # You must change these to your own details.
 [package]
-name = "rust-webpack-template"
+name = "webgl_thing"
 description = "My super awesome Rust, WebAssembly, and Webpack project!"
 version = "0.1.0"
 authors = ["You <you@example.com>"]
@@ -9,6 +9,8 @@ readme = "README.md"
 edition = "2018"
 
 [lib]
+name = "webgl_thing"
+path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [profile.release]
@@ -55,7 +57,7 @@ console_error_panic_hook = "0.1.5"
 
 # These crates are used for running unit tests.
 [dev-dependencies]
-wasm-bindgen-test = "0.2.45"
-futures = "0.1.27"
+wasm-bindgen-test = "0.3.34"
+futures = "0.3.28"
 js-sys = "0.3.22"
-wasm-bindgen-futures = "0.3.22"
+wasm-bindgen-futures = "0.4.34"

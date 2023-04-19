@@ -7,7 +7,7 @@ mod webgl_utils{
     pub mod render_pass;
 }
 
-mod vec_lib{
+pub mod vec_lib{
     pub mod vec2;
     pub mod vec3;
     pub mod vec4;
