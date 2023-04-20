@@ -50,7 +50,7 @@ features = [
     "Window",
     "Document",
     "HtmlCanvasElement",
-    "CanvasRenderingContext2d"
+    "CanvasRenderingContext2d",
 ]
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

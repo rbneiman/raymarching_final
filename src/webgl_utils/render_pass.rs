@@ -190,9 +190,15 @@ impl RenderPassConfig{
 
         let mut uniforms: Vec<Uniform> = Vec::new();
         for uniform_config in self.uniforms{
-            let loc =
+            let loc_res =
                 gl.get_uniform_location(&shader_program,uniform_config.name.as_str())
-                .ok_or(format!("Failed to find uniform '{}'", uniform_config.name))?;
+                .ok_or(format!("Failed to find uniform '{}'", uniform_config.name));
+
+            if loc_res.is_err(){
+                log_warn!("Uniform '{}' doesn't exist or was optimized out, Skipping.", uniform_config.name);
+                continue;
+            }
+            let loc = loc_res?;
 
             uniforms.push(Uniform{
                 name: uniform_config.name,

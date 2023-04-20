@@ -35,6 +35,10 @@ impl Mat4f {
         Mat4f { vals }
     }
 
+    pub fn vals(&self) -> &[f32;16]{
+       &self.vals
+    }
+
     pub fn frustum(
         left:   f32,
         right:  f32,

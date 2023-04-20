@@ -67,7 +67,7 @@ pub fn main_js() -> Result<(), JsValue> {
 
     let app = TestApp::new(context, canvas);
     *g.borrow_mut() = Some(Closure::new(move || {
-        log!("draw");
+        // log!("draw");
         app.draw();
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));
@@ -76,7 +76,5 @@ pub fn main_js() -> Result<(), JsValue> {
     // Your code goes here!
     console::log_1(&JsValue::from_str("Hello world!"));
     log!("test2");
-    log_warn!("warn");
-    log_error!("error");
     Ok(())
 }
