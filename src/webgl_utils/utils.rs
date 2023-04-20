@@ -43,6 +43,8 @@ pub fn util_create_program(ctx: &WebGl2RenderingContext, v_shader: &String, f_sh
         util_create_shader(ctx, WebGl2RenderingContext::FRAGMENT_SHADER, f_shader)?;
     ctx.attach_shader(&shader_program, &fragment_shader);
 
+    ctx.link_program(&shader_program);
+
     let link_status = ctx.get_program_parameter(&shader_program, WebGl2RenderingContext::LINK_STATUS);
     if link_status.is_falsy() {
         return match ctx.get_program_info_log(&shader_program)  {

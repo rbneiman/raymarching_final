@@ -1,6 +1,11 @@
+use std::rc::Rc;
+use js_sys::Object;
 use wasm_bindgen::prelude::*;
-use web_sys::console;
+use web_sys::{console, WebGl2RenderingContext};
+use std::cell::RefCell;
+use crate::app::TestApp;
 
+mod shaders;
 mod utils;
 mod app;
 mod webgl_utils{
@@ -28,6 +33,15 @@ pub mod vec_lib{
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+fn window() -> web_sys::Window {
+    web_sys::window().expect("no global `window` exists")
+}
+
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
+}
 
 // This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]
@@ -37,9 +51,32 @@ pub fn main_js() -> Result<(), JsValue> {
     #[cfg(debug_assertions)]
     console_error_panic_hook::set_once();
 
+    let window : web_sys::Window = web_sys::window().ok_or(JsValue::null())?;
+    let document = window.document().ok_or(JsValue::null())?;
+    let canvas_element = document.get_element_by_id("glCanvas")
+        .ok_or(JsValue::null())?;
+    let canvas = canvas_element.dyn_into::<web_sys::HtmlCanvasElement>()?;
+    let context = canvas.get_context("webgl2")
+        .and_then(|res| res.ok_or(JsValue::null()))
+        .and_then(|obj: Object|
+            obj.dyn_into::<WebGl2RenderingContext>().map_err(|_| JsValue::null())
+    )?;
 
+    let f = Rc::new(RefCell::new(None));
+    let g = f.clone();
+
+    let app = TestApp::new(context, canvas);
+    *g.borrow_mut() = Some(Closure::new(move || {
+        log!("draw");
+        app.draw();
+        request_animation_frame(f.borrow().as_ref().unwrap());
+    }));
+
+    request_animation_frame(g.borrow().as_ref().unwrap());
     // Your code goes here!
     console::log_1(&JsValue::from_str("Hello world!"));
     log!("test2");
+    log_warn!("warn");
+    log_error!("error");
     Ok(())
 }

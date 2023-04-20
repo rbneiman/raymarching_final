@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlTexture, WebGlUniformLocation, WebGlVertexArrayObject};
-use js_sys::{Float32Array, WebAssembly, Uint32Array, ArrayBuffer};
-use wasm_bindgen::{JsValue, throw_str};
-use crate::log_warn;
+use js_sys::{Uint32Array, ArrayBuffer};
+use wasm_bindgen::{JsValue};
+use crate::{log, log_warn};
 use crate::webgl_utils::utils::util_create_program;
 
 struct UnloadedTextureConfig{
     name: String,
     path: String,
 }
-
 
 struct LoadedTextureConfig{
     name: String,
@@ -154,10 +153,11 @@ impl RenderPassConfig{
             WebGl2RenderingContext::STATIC_DRAW
         );
 
+        log!("log");
         let mut attributes: HashMap<String, Attribute> = HashMap::new();
         for attr_config in self.attributes{
             let loc = gl.get_attrib_location(&shader_program, attr_config.name.as_str());
-
+            log!("loc: {}", loc);
             if loc == -1{
                 log_warn!("Attribute '{}' doesn't exist or was optimized out, Skipping.", attr_config.name);
                 continue;
@@ -170,6 +170,14 @@ impl RenderPassConfig{
               WebGl2RenderingContext::ARRAY_BUFFER,
                 Some(&attr_config.data),
                 WebGl2RenderingContext::STATIC_DRAW
+            );
+            gl.vertex_attrib_pointer_with_i32(
+                loc as u32,
+                attr_config.size as i32,
+                attr_config.size_type,
+                attr_config.normalized,
+                attr_config.stride as i32,
+                attr_config.offset as i32
             );
             gl.vertex_attrib_divisor(loc as u32, attr_config.divisor);
             gl.enable_vertex_attrib_array(loc as u32);
