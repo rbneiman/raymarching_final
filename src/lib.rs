@@ -5,6 +5,7 @@ mod utils;
 mod app;
 mod webgl_utils{
     pub mod render_pass;
+    pub mod utils;
 }
 
 pub mod vec_lib{
