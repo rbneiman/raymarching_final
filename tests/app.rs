@@ -1,7 +1,6 @@
 use wasm_bindgen_test::{wasm_bindgen_test_configure, wasm_bindgen_test};
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
-extern crate webgl_thing;
 use webgl_thing::vec_lib::{
     mat4::Mat4f
 };

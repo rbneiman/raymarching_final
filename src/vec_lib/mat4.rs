@@ -1,8 +1,6 @@
 use std::f32::consts::PI;
 use std::ops::{Index, IndexMut};
-use auto_ops::*;
 use crate::vec_lib::mat3;
-use crate::vec_lib::mat3::Mat3f;
 use crate::vec_lib::vec3::Vec3f;
 use crate::vec_lib::vec4::Vec4f;
 
@@ -225,6 +223,24 @@ impl Mat4f {
         let result = self.multiply_vec4(vec);
         *vec = result;
         vec
+    }
+
+    /// Multiplies a vec3 as if it is a vec4 with its w component set to 0
+    pub fn multiply_vec3(&self, vec: &Vec3f) -> Vec3f{
+        Vec3f::new(
+            self[0] * vec.x() + self[1] * vec.y() + self[2] * vec.z(),
+            self[4] * vec.x() + self[5] * vec.y() + self[6] * vec.z(),
+            self[8] * vec.x() + self[9] * vec.y() + self[10] * vec.z(),
+        )
+    }
+
+    /// Multiplies a vec3 as if it is a vec4 with its w component set to 1
+    pub fn multiply_pt3(&self, vec: &Vec3f) -> Vec3f{
+        Vec3f::new(
+            self[3] + self[0] * vec.x() + self[1] * vec.y() + self[2] * vec.z(),
+            self[7] + self[4] * vec.x() + self[5] * vec.y() + self[6] * vec.z(),
+            self[11] + self[8] * vec.x() + self[9] * vec.y() + self[10] * vec.z(),
+        )
     }
 
     pub fn scale(&self, val: f32) -> Self{

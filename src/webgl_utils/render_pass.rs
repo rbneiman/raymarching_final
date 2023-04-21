@@ -153,11 +153,9 @@ impl RenderPassConfig{
             WebGl2RenderingContext::STATIC_DRAW
         );
 
-        log!("log");
         let mut attributes: HashMap<String, Attribute> = HashMap::new();
         for attr_config in self.attributes{
             let loc = gl.get_attrib_location(&shader_program, attr_config.name.as_str());
-            log!("loc: {}", loc);
             if loc == -1{
                 log_warn!("Attribute '{}' doesn't exist or was optimized out, Skipping.", attr_config.name);
                 continue;

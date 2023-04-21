@@ -8,9 +8,12 @@ use crate::app::TestApp;
 mod shaders;
 mod utils;
 mod app;
+mod input;
+
 mod webgl_utils{
     pub mod render_pass;
     pub mod utils;
+    pub mod camera;
 }
 
 pub mod vec_lib{
@@ -21,6 +24,8 @@ pub mod vec_lib{
     pub mod mat2;
     pub mod mat3;
     pub mod mat4;
+
+    pub mod quat;
 }
 
 
@@ -73,8 +78,6 @@ pub fn main_js() -> Result<(), JsValue> {
     }));
 
     request_animation_frame(g.borrow().as_ref().unwrap());
-    // Your code goes here!
-    console::log_1(&JsValue::from_str("Hello world!"));
-    log!("test2");
+    // console::log_1(&JsValue::from_str("Hello world!"));
     Ok(())
 }

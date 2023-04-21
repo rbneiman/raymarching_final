@@ -1,21 +1,21 @@
-use std::ops::Add;
-use std::time::{Duration, Instant, SystemTime};
+use std::f32;
 use js_sys::{Float32Array, Uint32Array};
-use web_sys::{WebGlProgram, WebGl2RenderingContext, WebGlShader, HtmlCanvasElement, WebGlUniformLocation};
+use web_sys::{WebGl2RenderingContext, HtmlCanvasElement, WebGlUniformLocation};
 use wasm_bindgen::{JsCast, JsValue};
 use crate::{log, log_error};
+use crate::input::InputManager;
 use crate::shaders::{FRAG_SHADER, VERT_SHADER};
 use crate::vec_lib::mat4;
 use crate::vec_lib::mat4::Mat4f;
 use crate::vec_lib::vec3::Vec3f;
-use crate::webgl_utils::render_pass;
 use crate::webgl_utils::render_pass::{RenderPass, RenderPassConfig};
 
 
 pub struct TestApp{
     ctx: WebGl2RenderingContext,
     canvas: HtmlCanvasElement,
-    render_pass: RenderPass
+    render_pass: RenderPass,
+    input_manager: InputManager
 }
 
 static INDEX_VALS: [u32; 3] = [2,1,0];
@@ -62,11 +62,13 @@ impl TestApp {
         }.expect("should not error");
 
 
+        let input_manager = InputManager::new(&canvas);
 
         TestApp{
             ctx,
             canvas,
-            render_pass
+            render_pass,
+            input_manager
         }
     }
 
@@ -77,8 +79,9 @@ impl TestApp {
     }
 
     pub fn get_mvp(gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation){
-        let time = js_sys::Date::now();
-
+        let time = js_sys::Date::now() / 1000.0 % 100.0;
+        let rads = time as f32;
+        // log!("{}, {}", time, rads);
         let model = mat4::IDENTITY
             .translate(&Vec3f::new(0.0f32, 0.0f32, 5.0f32))
             .rotate3d(&Vec3f::new(0.0, 1.0, 0.0), time as f32);
@@ -87,6 +90,7 @@ impl TestApp {
             &Vec3f::new(0.0,0.0,0.0),
             &Vec3f::new(0.0, 1.0, 0.0)
         );
+
 
         let perspective = Mat4f::perspective(
             45.0,
