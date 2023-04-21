@@ -70,7 +70,7 @@ pub fn main_js() -> Result<(), JsValue> {
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
-    let app = TestApp::new(context, canvas);
+    let app = TestApp::new(context, canvas, window);
     *g.borrow_mut() = Some(Closure::new(move || {
         // log!("draw");
         app.draw();

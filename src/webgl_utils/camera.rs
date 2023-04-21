@@ -1,3 +1,4 @@
+use crate::log;
 use crate::vec_lib::mat4;
 use crate::vec_lib::mat4::Mat4f;
 use crate::vec_lib::vec3::Vec3f;
@@ -23,13 +24,13 @@ impl FPSCamera{
     pub fn new(pos: Vec3f, target: Vec3f, up_dir:Vec3f, fov: f32, aspect: f32, near: f32, far:f32)
     -> Self{
         let eye = pos;
-        let forward = (pos - target).normalize();
-        let right = up_dir.cross(&forward);
+        let forward = (pos - target).normalize().negate();
+        let right = up_dir.cross(&forward).normalize().negate();
         let target_dist = (eye - target).length();
         FPSCamera{
             eye,
             forward,
-            up: up_dir,
+            up: up_dir.normalize(),
             right,
             target_dist,
             fov,
@@ -38,7 +39,7 @@ impl FPSCamera{
             far,
 
             forward_initial: forward.clone(),
-            up_initial: up_dir.clone(),
+            up_initial: up_dir.normalize(),
         }
     }
 
@@ -47,7 +48,7 @@ impl FPSCamera{
     }
 
     pub fn translate(&mut self, vec: &Vec3f){
-        self.eye.add_mut(vec);
+        self.eye = self.eye + vec;
     }
 
     pub fn rotate(&mut self, axis: &Vec3f, radians: f32){
@@ -57,6 +58,22 @@ impl FPSCamera{
         self.forward = rot_mat.multiply_vec3(&self.forward);
         self.up = rot_mat.multiply_vec3(&self.up);
         self.right = rot_mat.multiply_vec3(&self.right);
+    }
+
+    pub fn forward(&self) -> &Vec3f{
+        &self.forward
+    }
+
+    pub fn right(&self) -> Vec3f{
+        self.right
+    }
+
+    pub fn up(&self) -> Vec3f{
+        self.up
+    }
+
+    pub fn up_initial(&self) -> Vec3f{
+        self.up_initial
     }
 
     pub fn view_matrix(&self) -> Mat4f{

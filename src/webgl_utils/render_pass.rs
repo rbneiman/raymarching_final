@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlTexture, WebGlUniformLocation, WebGlVertexArrayObject};
 use js_sys::{Uint32Array, ArrayBuffer};
 use wasm_bindgen::{JsValue};
@@ -37,15 +39,19 @@ struct Attribute{
     buffer: WebGlBuffer,
 }
 
+pub trait UniformProvider{
+    fn update(&self, gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation);
+}
+
 struct UniformConfig{
     name: String,
-    bind_function: fn(gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation),
+    bind_function: Rc<dyn UniformProvider>,
 }
 
 struct Uniform{
     name: String,
     location: WebGlUniformLocation,
-    bind_function: fn(gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation),
+    bind_function: Rc<dyn UniformProvider>,
 }
 
 pub struct RenderPassConfig{
@@ -120,7 +126,7 @@ impl RenderPassConfig{
     }
 
     pub fn add_uniform(mut self, name: String,
-                       bind_function: fn(gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation)) -> Self{
+                       bind_function: Rc<dyn UniformProvider>,) -> Self{
         self.uniforms.push(UniformConfig{name, bind_function});
         self
     }
@@ -255,7 +261,7 @@ impl RenderPass{
         gl.bind_vertex_array(Some(&self.vao));
 
         for uniform in &self.uniforms{
-            (uniform.bind_function)(gl, &uniform.location);
+            uniform.bind_function.update(gl, &uniform.location);
         }
 
         for texture in &self.textures{
