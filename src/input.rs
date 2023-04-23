@@ -104,6 +104,10 @@ impl InputManager {
     pub fn view_matrix(&self) -> Mat4f{
         self.contents.borrow_mut().camera.view_matrix()
     }
+
+    pub fn position(&self) -> Vec3f{
+        self.contents.borrow_mut().camera.position()
+    }
 }
 
 impl InputManagerContents{

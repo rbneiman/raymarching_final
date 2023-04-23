@@ -60,8 +60,12 @@ impl FPSCamera{
         self.right = rot_mat.multiply_vec3(&self.right);
     }
 
-    pub fn forward(&self) -> &Vec3f{
-        &self.forward
+    pub fn position(&self) -> Vec3f{
+        self.eye
+    }
+
+    pub fn forward(&self) -> Vec3f{
+        self.forward
     }
 
     pub fn right(&self) -> Vec3f{

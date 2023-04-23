@@ -40,16 +40,18 @@ struct Attribute{
 }
 
 pub trait UniformProvider{
-    fn update(&self, gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation);
+    fn update(&self, gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation, index:u32);
 }
 
 struct UniformConfig{
     name: String,
+    index: u32,
     bind_function: Rc<dyn UniformProvider>,
 }
 
 struct Uniform{
     name: String,
+    index: u32,
     location: WebGlUniformLocation,
     bind_function: Rc<dyn UniformProvider>,
 }
@@ -126,8 +128,8 @@ impl RenderPassConfig{
     }
 
     pub fn add_uniform(mut self, name: String,
-                       bind_function: Rc<dyn UniformProvider>,) -> Self{
-        self.uniforms.push(UniformConfig{name, bind_function});
+                       bind_function: Rc<dyn UniformProvider>, index: u32) -> Self{
+        self.uniforms.push(UniformConfig{name, bind_function, index});
         self
     }
 
@@ -207,7 +209,8 @@ impl RenderPassConfig{
             uniforms.push(Uniform{
                 name: uniform_config.name,
                 location: loc,
-                bind_function: uniform_config.bind_function
+                bind_function: uniform_config.bind_function,
+                index: uniform_config.index
             });
         }
 
@@ -261,7 +264,7 @@ impl RenderPass{
         gl.bind_vertex_array(Some(&self.vao));
 
         for uniform in &self.uniforms{
-            uniform.bind_function.update(gl, &uniform.location);
+            uniform.bind_function.update(gl, &uniform.location, uniform.index);
         }
 
         for texture in &self.textures{
