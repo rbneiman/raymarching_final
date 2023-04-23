@@ -84,9 +84,9 @@ vec2 intersectSphere(vec3 rayPos, vec3 rayDir, vec3 spherePos, float sphereSize)
 // https://www.shadertoy.com/view/ltfSWn
 const int ITERATIONS = 4;
 const float POWER = 3.5;
-float calcBulbDist(vec3 pos, vec3 bulbPos, float scale){
-    pos = pos - bulbPos;
-    pos /= scale;
+float calcBulbDist(vec3 pos){
+    pos = pos - BULB_POS;
+    pos /= BULB_SCALE;
     vec3 w = pos;
     float m = dot(w,w);
     float dz = 1.0;
@@ -103,7 +103,17 @@ float calcBulbDist(vec3 pos, vec3 bulbPos, float scale){
 		if( m > 25600.0 )
             break;
 	}
-	return scale * 0.25*log(m)*sqrt(m)/dz;
+	return BULB_SCALE * 0.25*log(m)*sqrt(m)/dz;
+}
+
+// calculates the normal of the bulb sdf at the given point by finding the gradient
+vec3 bulbNormal(vec3 pos){
+    vec2 delta = vec2(0.0001, 0.0);
+    return normalize(vec3(
+        calcBulbDist(pos + delta.xyy) - calcBulbDist(pos - delta.xyy),
+        calcBulbDist(pos + delta.yxy) - calcBulbDist(pos - delta.yxy),
+        calcBulbDist(pos + delta.yyx) - calcBulbDist(pos - delta.yyx)
+        ));
 }
 
 float rayMarch(vec3 rayPos, vec3 rayDir){
@@ -116,7 +126,7 @@ float rayMarch(vec3 rayPos, vec3 rayDir){
     float dist;
     for(int i=0; i<150; ++i){
         vec3 pos = rayPos + t * rayDir;
-        dist = calcBulbDist(pos, BULB_POS, BULB_SCALE);
+        dist = calcBulbDist(pos);
         float th = 0.25 * t * THRESH;
         if(t > boundingSphereDistance.y || dist < THRESH) break;
         t += dist;
@@ -140,8 +150,9 @@ void main () {
     if(dist < 0.0){
         fragColor = vec4(0.0, 1.0, 0.0, 1.0);
     }else{
+        vec3 normal = bulbNormal(finalRayPos);
         fragColor = vec4(vec3(0.0, 0.0, 1.0)
-        * clamp(dot(normalize(finalRayPos-BULB_POS), normalize(LIGHT - finalRayPos)), 0.01, 1.0), 1.0);
+        * clamp(dot(normal, normalize(LIGHT - finalRayPos)), 0.01, 1.0), 1.0);
     }
 
 //    float clamped = clamp(dist, 0.0, THRESH);
