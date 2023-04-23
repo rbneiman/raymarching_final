@@ -36,8 +36,8 @@ impl InputManager {
     pub fn new(canvas: &HtmlCanvasElement, window: &web_sys::Window) -> Self {
         let time = js_sys::Date::now();
         let camera = FPSCamera::new(
-            Vec3f::new(0.0, 0.0, -1.0),
             Vec3f::new(0.0, 0.0, 0.0),
+            Vec3f::new(0.0, 0.0, 1.0),
             Vec3f::new(0.0, 1.0, 0.0),
             45.0,
             1280.0 / 960.0,
