@@ -60,15 +60,19 @@ void main () {
 pub static FRACTAL_FRAG_SHADER: &str = r#"#version 300 es
 precision mediump float;
 
+
+uniform mat4 invProjMat;
+
+
 in vec2 uv;
 in vec3 rayPosFrag;
 in vec3 rayDirFrag;
 
 out vec4 fragColor;
 
-const vec3 BULB_POS = vec3(100.0, 0.0, 100.0);
-const float BULB_SCALE = 100.0;
-const float THRESH = 0.0003;
+const vec3 BULB_POS = vec3(10.0, 0.0, 10.0);
+const float BULB_SCALE = 10.0;
+const float THRESH = 0.03;
 
 // https://iquilezles.org/articles/intersectors/
 vec2 intersectSphere(vec3 rayPos, vec3 rayDir, vec3 spherePos, float sphereSize){
@@ -79,6 +83,22 @@ vec2 intersectSphere(vec3 rayPos, vec3 rayDir, vec3 spherePos, float sphereSize)
     if(h<0.0) return vec2(-1.0); // no intersections
     h = sqrt(h);
     return vec2(-b-h, -b+h);
+}
+
+vec2 intersectCube(vec3 rayPos, vec3 rayDir, float size, out vec3 normal){
+    vec3 m = 1.0/rayDir;
+    vec3 n = m * rayPos;
+    vec3 k = abs(m)*vec3(size);
+    vec3 t1 = -n -k;
+    vec3 t2 = -n + k;
+    float tN = max( max( t1.x, t1.y ), t1.z );
+    float tF = min( min( t2.x, t2.y ), t2.z );
+    if( tN>tF || tF<0.0) return vec2(-1.0); // no intersection
+
+    normal = (tN>0.0) ? step(vec3(tN),t1) : // ro ouside the box
+                       step(t2,vec3(tF));  // ro inside the box
+    normal *= -sign(rayDir);
+    return vec2( tN, tF );
 }
 
 // https://www.shadertoy.com/view/ltfSWn
@@ -106,6 +126,50 @@ float calcBulbDist(vec3 pos){
 	return BULB_SCALE * 0.25*log(m)*sqrt(m)/dz;
 }
 
+float cubeSDF(vec3 pos){
+    vec3 b = vec3(1.0);
+    vec3 q = abs(pos) - b;
+    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+float sdCross(vec3 pos){
+  float da = cubeSDF(vec3(pos.xy, 0.0));
+  float db = cubeSDF(vec3(pos.yz, 0.0));
+  float dc = cubeSDF(vec3(pos.zx, 0.0));
+  return min(da,min(db,dc));
+}
+
+const int MENGER_ITER = 6;
+float mengerSpongeSdf(vec3 pos){
+    pos = pos - BULB_POS;
+    pos /= BULB_SCALE;
+
+    float dist = cubeSDF(pos);
+    float scale = 1.0;
+    for(int i=0; i<MENGER_ITER; ++i){
+        vec3 posScaled = mod(pos*scale, 2.0) - 1.0;
+        scale *= 3.0;
+        vec3 posScaledTranslated = 1.0 - 3.0*abs(posScaled);
+
+
+        float crossDist = sdCross(posScaledTranslated)/scale;
+        dist = max(dist, crossDist);
+//        pos = (invProjMat * vec4(pos,1.0)).xyz;
+    }
+
+
+    return BULB_SCALE * dist;
+}
+
+vec3 mengerNormal(vec3 pos){
+        vec2 delta = vec2(0.0001, 0.0);
+    return normalize(vec3(
+        mengerSpongeSdf(pos + delta.xyy) - mengerSpongeSdf(pos - delta.xyy),
+        mengerSpongeSdf(pos + delta.yxy) - mengerSpongeSdf(pos - delta.yxy),
+        mengerSpongeSdf(pos + delta.yyx) - mengerSpongeSdf(pos - delta.yyx)
+        ));
+}
+
 // calculates the normal of the bulb sdf at the given point by finding the gradient
 vec3 bulbNormal(vec3 pos){
     vec2 delta = vec2(0.0001, 0.0);
@@ -119,20 +183,21 @@ vec3 bulbNormal(vec3 pos){
 float rayMarch(vec3 rayPos, vec3 rayDir){
 
     vec2 boundingSphereDistance = intersectSphere(rayPos, rayDir, BULB_POS, BULB_SCALE*1.25);
-    if(boundingSphereDistance.y < 0.0) return -1.0;
+//    if(boundingSphereDistance.y < 0.0) return -1.0;
     boundingSphereDistance.x = max(boundingSphereDistance.x, 0.0);
 
-    float t = boundingSphereDistance.x;
+    float t = 0.0;
     float dist;
     for(int i=0; i<150; ++i){
         vec3 pos = rayPos + t * rayDir;
-        dist = calcBulbDist(pos);
+        dist = mengerSpongeSdf(pos);
         float th = 0.25 * t * THRESH;
-        if(t > boundingSphereDistance.y || dist < THRESH) break;
+        if(dist < THRESH) break;
         t += dist;
     }
 
-    if(t < boundingSphereDistance.y){
+
+    if(dist< THRESH){
         return t;
     }else{
         return -1.0;
@@ -150,8 +215,8 @@ void main () {
     if(dist < 0.0){
         fragColor = vec4(0.0, 1.0, 0.0, 1.0);
     }else{
-        vec3 normal = bulbNormal(finalRayPos);
-        fragColor = vec4(vec3(0.0, 0.0, 1.0)
+        vec3 normal = mengerNormal(finalRayPos);
+        fragColor = vec4(vec3(sin(length(finalRayPos - BULB_POS) * 5.0), 0.0, 1.0)
         * clamp(dot(normal, normalize(LIGHT - finalRayPos)), 0.01, 1.0), 1.0);
     }
 
