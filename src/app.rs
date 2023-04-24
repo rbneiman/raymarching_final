@@ -71,7 +71,8 @@ impl TestApp {
 
         let fractal_pass_cfg: RenderPassConfig = Self::setup_pixel_shader(FRACTAL_FRAG_SHADER.to_string())
             .add_uniform(String::from("invProjMat"), fractal_uniform_provider.clone(), 0)
-            .add_uniform(String::from("invViewMat"), fractal_uniform_provider.clone(), 1);
+            .add_uniform(String::from("invViewMat"), fractal_uniform_provider.clone(), 1)
+            .add_uniform(String::from("viewProjMat"), fractal_uniform_provider.clone(), 2);
 
         let render_pass = Self::render_log_wrapper(ctx.clone(),render_pass_cfg);
         let fractal_render_pass = Self::render_log_wrapper(ctx.clone(),fractal_pass_cfg);
@@ -138,7 +139,6 @@ impl TestApp {
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);
         self.ctx.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT
             | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
-        self.ctx.disable(WebGl2RenderingContext::DEPTH_TEST);
         self.fractal_render_pass.draw();
         self.render_pass.draw();
     }
@@ -164,9 +164,14 @@ impl UniformProvider for FractalModelProvider{
         let mat = match index {
             0 =>{
                 self.input_manager.proj_matrix().inverse().transpose()
+            },
+            1 =>{
+                self.input_manager.view_matrix().inverse().transpose()
             }
             _ =>{
-                self.input_manager.view_matrix().inverse().transpose()
+                let view = self.input_manager.view_matrix();
+                let proj = self.input_manager.proj_matrix();
+                proj.multiply_mat4(&view).transpose()
             }
         };
         let vals = mat.vals();

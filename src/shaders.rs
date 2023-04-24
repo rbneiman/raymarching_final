@@ -60,8 +60,8 @@ void main () {
 pub static FRACTAL_FRAG_SHADER: &str = r#"#version 300 es
 precision mediump float;
 
-
 uniform mat4 invProjMat;
+uniform mat4 viewProjMat;
 
 
 in vec2 uv;
@@ -70,9 +70,10 @@ in vec3 rayDirFrag;
 
 out vec4 fragColor;
 
-const vec3 BULB_POS = vec3(10.0, 0.0, 10.0);
+const vec3 BULB_POS = vec3(11.0, 0.0, 11.0);
 const float BULB_SCALE = 10.0;
-const float THRESH = 0.03;
+const float THRESH = 0.003;
+const float FAR_PLANE = 1000.0;
 
 // https://iquilezles.org/articles/intersectors/
 vec2 intersectSphere(vec3 rayPos, vec3 rayDir, vec3 spherePos, float sphereSize){
@@ -120,7 +121,7 @@ float calcBulbDist(vec3 pos){
         float a = 8.0*atan( w.x, w.z );
         w = pos + pow(r,8.0) * vec3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
         m = dot(w,w);
-		if( m > 25600.0 )
+		if( m > 2560.0 )
             break;
 	}
 	return BULB_SCALE * 0.25*log(m)*sqrt(m)/dz;
@@ -139,12 +140,14 @@ float sdCross(vec3 pos){
   return min(da,min(db,dc));
 }
 
-const int MENGER_ITER = 6;
-float mengerSpongeSdf(vec3 pos){
+const int MENGER_ITER = 20;
+float mengerSpongeSdf(vec3 pos, out vec3 col){
     pos = pos - BULB_POS;
     pos /= BULB_SCALE;
+    float dist = calcBulbDist(pos);
 
-    float dist = cubeSDF(pos);
+    col = vec3(dist, 0.0, dist);
+
     float scale = 1.0;
     for(int i=0; i<MENGER_ITER; ++i){
         vec3 posScaled = mod(pos*scale, 2.0) - 1.0;
@@ -153,8 +156,11 @@ float mengerSpongeSdf(vec3 pos){
 
 
         float crossDist = sdCross(posScaledTranslated)/scale;
+        if(crossDist > dist){
+            col *= 0.75;
+        }
         dist = max(dist, crossDist);
-//        pos = (invProjMat * vec4(pos,1.0)).xyz;
+
     }
 
 
@@ -162,11 +168,12 @@ float mengerSpongeSdf(vec3 pos){
 }
 
 vec3 mengerNormal(vec3 pos){
-        vec2 delta = vec2(0.0001, 0.0);
+    vec2 delta = vec2(0.0001, 0.0);
+    vec3 col;
     return normalize(vec3(
-        mengerSpongeSdf(pos + delta.xyy) - mengerSpongeSdf(pos - delta.xyy),
-        mengerSpongeSdf(pos + delta.yxy) - mengerSpongeSdf(pos - delta.yxy),
-        mengerSpongeSdf(pos + delta.yyx) - mengerSpongeSdf(pos - delta.yyx)
+        mengerSpongeSdf(pos + delta.xyy, col) - mengerSpongeSdf(pos - delta.xyy, col),
+        mengerSpongeSdf(pos + delta.yxy, col) - mengerSpongeSdf(pos - delta.yxy, col),
+        mengerSpongeSdf(pos + delta.yyx, col) - mengerSpongeSdf(pos - delta.yyx, col)
         ));
 }
 
@@ -180,7 +187,11 @@ vec3 bulbNormal(vec3 pos){
         ));
 }
 
-float rayMarch(vec3 rayPos, vec3 rayDir){
+float rand(vec2 co){
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float rayMarch(vec3 rayPos, vec3 rayDir, out vec3 col){
 
     vec2 boundingSphereDistance = intersectSphere(rayPos, rayDir, BULB_POS, BULB_SCALE*1.25);
 //    if(boundingSphereDistance.y < 0.0) return -1.0;
@@ -188,16 +199,17 @@ float rayMarch(vec3 rayPos, vec3 rayDir){
 
     float t = 0.0;
     float dist;
+    float th;
     for(int i=0; i<150; ++i){
         vec3 pos = rayPos + t * rayDir;
-        dist = mengerSpongeSdf(pos);
-        float th = 0.25 * t * THRESH;
-        if(dist < THRESH) break;
+        dist = mengerSpongeSdf(pos, col);
+        th =  t * THRESH * (rand(rayDir.xy)*0.2+0.8);
+        if(dist < th || dist > 500.0) break;
         t += dist;
     }
 
 
-    if(dist< THRESH){
+    if(dist< th){
         return t;
     }else{
         return -1.0;
@@ -208,16 +220,20 @@ const vec3 LIGHT = vec3(-15.0, -15.0, -15.0);
 void main () {
     vec3 rayDir = normalize(rayDirFrag);
     vec3 rayPos = rayPosFrag;
-    float dist = rayMarch(rayPos, rayDir);
+    vec3 col;
+    float dist = rayMarch(rayPos, rayDir, col);
 
 //    fragColor = vec4(float(rayDir.x > 0.0), float(rayDir.y > 0.0), float(rayDir.z > 0.0), 1.0);
     vec3 finalRayPos = rayPos + rayDir * dist;
     if(dist < 0.0){
+        gl_FragDepth = FAR_PLANE;
         fragColor = vec4(0.0, 1.0, 0.0, 1.0);
     }else{
+        vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
+        gl_FragDepth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
         vec3 normal = mengerNormal(finalRayPos);
-        fragColor = vec4(vec3(sin(length(finalRayPos - BULB_POS) * 5.0), 0.0, 1.0)
-        * clamp(dot(normal, normalize(LIGHT - finalRayPos)), 0.01, 1.0), 1.0);
+        fragColor = vec4(col, 1.0)
+        * clamp(dot(normal, normalize(LIGHT - finalRayPos)), 0.01, 1.0);
     }
 
 //    float clamped = clamp(dist, 0.0, THRESH);
