@@ -74,6 +74,7 @@ const vec3 BULB_POS = vec3(11.0, 0.0, 11.0);
 const float BULB_SCALE = 10.0;
 const float THRESH = 0.003;
 const float FAR_PLANE = 1000.0;
+const vec3 LIGHT_DIR = normalize(vec3(-1, 1, -1));
 
 // https://iquilezles.org/articles/intersectors/
 vec2 intersectSphere(vec3 rayPos, vec3 rayDir, vec3 spherePos, float sphereSize){
@@ -140,13 +141,13 @@ float sdCross(vec3 pos){
   return min(da,min(db,dc));
 }
 
-const int MENGER_ITER = 20;
+const int MENGER_ITER = 8;
 float mengerSpongeSdf(vec3 pos, out vec3 col){
     pos = pos - BULB_POS;
     pos /= BULB_SCALE;
     float dist = calcBulbDist(pos);
 
-    col = vec3(dist, 0.0, dist);
+    col = vec3(dist, 1.0, dist);
 
     float scale = 1.0;
     for(int i=0; i<MENGER_ITER; ++i){
@@ -191,6 +192,27 @@ float rand(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+float shadow(vec3 rayPos, vec3 rayDir, float minT, float maxT, float k){
+    float t = minT;
+    float res = 1.0;
+    float prevDist = 0.0000001;
+    vec3 col;
+    for(int i=0; i<30 && t<maxT; ++i){
+        vec3 pos = rayPos + t * rayDir;
+        float dist = mengerSpongeSdf(pos, col);
+        if(dist < minT) return 0.0;
+
+        float y = (dist*dist) /(2.0 * prevDist);
+        float d = sqrt(dist*dist - y*y);
+        res = min(res, d / (k*max(0.0, t-y)));
+
+        prevDist = dist;
+        t += dist;
+    }
+    return res;
+}
+
+
 float rayMarch(vec3 rayPos, vec3 rayDir, out vec3 col){
 
     vec2 boundingSphereDistance = intersectSphere(rayPos, rayDir, BULB_POS, BULB_SCALE*1.25);
@@ -216,24 +238,31 @@ float rayMarch(vec3 rayPos, vec3 rayDir, out vec3 col){
     }
 }
 
-const vec3 LIGHT = vec3(-15.0, -15.0, -15.0);
+const float BG = 0.37254903;
 void main () {
     vec3 rayDir = normalize(rayDirFrag);
     vec3 rayPos = rayPosFrag;
     vec3 col;
     float dist = rayMarch(rayPos, rayDir, col);
+    vec3 finalRayPos = rayPos + rayDir * dist;
+//    vec3 lightDir = normalize(LIGHT_POS - finalRayPos);
+    float shadowFactor = shadow(finalRayPos, LIGHT_DIR, 0.001, 500.0, 0.1);
 
 //    fragColor = vec4(float(rayDir.x > 0.0), float(rayDir.y > 0.0), float(rayDir.z > 0.0), 1.0);
-    vec3 finalRayPos = rayPos + rayDir * dist;
+
     if(dist < 0.0){
-        gl_FragDepth = FAR_PLANE;
-        fragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        gl_FragDepth = 0.999;
+        fragColor = vec4(
+            mix(vec3(0.0, BG, BG), vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), 1.0);
+//            clamp(), 0.0, 1.0-BG), 1.0);
     }else{
         vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
         gl_FragDepth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
         vec3 normal = mengerNormal(finalRayPos);
-        fragColor = vec4(col, 1.0)
-        * clamp(dot(normal, normalize(LIGHT - finalRayPos)), 0.01, 1.0);
+        fragColor = vec4(vec3(1.0, 1.0, 1.0)
+        * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0)
+        * shadowFactor
+        , 1.0);
     }
 
 //    float clamped = clamp(dist, 0.0, THRESH);
@@ -246,4 +275,101 @@ void main () {
 //    fragColor = vec4(col, 1.0);
 }
 
+"#;
+
+
+pub static CLOUD_FRAG_SHADER: &str = r#"#version 300 es
+precision mediump float;
+
+uniform mat4 invProjMat;
+uniform mat4 viewProjMat;
+
+in vec2 uv;
+in vec3 rayPosFrag;
+in vec3 rayDirFrag;
+
+out vec4 fragColor;
+
+const mat3 ROT_MAT = mat3(
+    vec3(0.2896239459514618, 0.7085132598876953, -0.6435269713401794),
+    vec3(-0.28627997636795044, 0.7056889533996582, 0.6481102705001831),
+    vec3(0.9133245348930359, -0.0034793566446751356, 0.4072175621986389)
+);
+
+
+//https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
+const float PHI = 1.61803398874989484820459;  // Φ = Golden Ratio
+float hash(vec2 p){
+        p  = 50.0*fract( p*0.3183099  + vec2(0.71,0.113));
+        return -1.0+2.0*fract( p.x*p.y*(p.x+p.y) );
+}
+
+float rand3D(vec3 co){
+    return hash(vec2(hash(co.xy), hash(co.yz)));
+}
+
+vec3 unit_vec(in vec3 xyz) {
+//        float theta = 6.28318530718*rand3D(xyz);
+        float rand1 = hash(xyz.xy);
+        float rand2 = hash(vec2(rand1, xyz.z));
+        float rand3 = hash(vec2(rand2, rand1));
+        return normalize(vec3(rand1, rand2, rand3));
+}
+
+float smoothmix(float a0, float a1, float w) {
+        return (a1 - a0) * ((w * (w * 6.0 - 15.0) + 10.0) * w * w * w) + a0;
+}
+
+const float PERIODS[] = float[](4.0,2.0,1.0,0.5);
+const float WEIGHTS[] = float[](1.0,0.5,0.25,0.135);
+
+float perlin3D(vec3 pos){
+
+        float val = 0.0;
+        for(int i=0; i<1; ++i){
+            float weight = WEIGHTS[i];
+            float freq = 1.0/PERIODS[i];
+
+            vec3 noisePos = pos * freq;
+            vec3 floorPos = floor(noisePos);
+            vec3 fracPos = fract(noisePos);
+
+            vec2 sampleVec = vec2(0.0, 1.0);
+
+            float p1 = dot(unit_vec(floorPos), noisePos - floorPos);
+            float p2 = dot(unit_vec(floorPos + sampleVec.xxy), noisePos - sampleVec.xxy - floorPos);
+            float p3 = dot(unit_vec(floorPos + sampleVec.xyx), noisePos - sampleVec.xyx - floorPos);
+            float p4 = dot(unit_vec(floorPos + sampleVec.xyy), noisePos - sampleVec.xyy - floorPos);
+
+            float p5 = dot(unit_vec(floorPos + sampleVec.yxx), noisePos - sampleVec.yxx - floorPos);
+            float p6 = dot(unit_vec(floorPos + sampleVec.yxy), noisePos - sampleVec.yxy - floorPos);
+            float p7 = dot(unit_vec(floorPos + sampleVec.yyx), noisePos - sampleVec.yyx - floorPos);
+            float p8 = dot(unit_vec(floorPos + sampleVec.yyy), noisePos - sampleVec.yyy - floorPos);
+
+            float s1 = smoothmix(p1, p5, fracPos.x);
+            float s2 = smoothmix(p2, p6, fracPos.x);
+            float s3 = smoothmix(p3, p7, fracPos.x);
+            float s4 = smoothmix(p4, p8, fracPos.x);
+
+            float s5 = smoothmix(s1, s3, fracPos.y);
+            float s6 = smoothmix(s2, s4, fracPos.y);
+
+
+            //val += weight * p2;
+            val += weight * smoothmix(s5, s6, fracPos.z);
+        }
+        return val * 0.5 + 0.5;
+}
+
+void main () {
+    vec3 rayDir = normalize(rayDirFrag);
+    vec3 rayPos = rayPosFrag;
+
+    vec3 zeroed = vec3(rayPos.xy, 0.0);
+    float noise = perlin3D(ROT_MAT*rayPos + rayDir*100.0);
+    //perlin3D(zeroed + 100.0 * vec3(uv, 0.0));
+//    float noise3d = rand3D(rayPos.xyz + 100.0 * rayDir);
+//    vec3 vec = unit_vec(rayPos + 100.0 * rayDir);
+    fragColor = vec4(vec3(noise), 1.0);
+}
 "#;

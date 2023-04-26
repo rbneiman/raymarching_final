@@ -3,7 +3,6 @@ use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlCanvasElement, MouseEvent, KeyboardEvent};
-use web_sys::console::time;
 use crate::log;
 use crate::vec_lib::mat4::Mat4f;
 use crate::vec_lib::vec3::Vec3f;

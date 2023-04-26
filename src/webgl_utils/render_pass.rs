@@ -1,10 +1,9 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlTexture, WebGlUniformLocation, WebGlVertexArrayObject};
 use js_sys::{Uint32Array, ArrayBuffer};
 use wasm_bindgen::{JsValue};
-use crate::{log, log_warn};
+use crate::log_warn;
 use crate::webgl_utils::utils::util_create_program;
 
 struct UnloadedTextureConfig{

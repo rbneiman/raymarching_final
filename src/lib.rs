@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use js_sys::Object;
 use wasm_bindgen::prelude::*;
-use web_sys::{console, WebGl2RenderingContext};
+use web_sys::WebGl2RenderingContext;
 use std::cell::RefCell;
 use crate::app::TestApp;
 
@@ -70,7 +70,12 @@ pub fn main_js() -> Result<(), JsValue> {
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
-    let app = TestApp::new(context, canvas, window);
+    let app = TestApp::new(context, canvas, window)
+        .map_err(|err| -> JsValue{
+            log_error!("{}", err);
+            JsValue::null()
+    })?;
+
     *g.borrow_mut() = Some(Closure::new(move || {
         // log!("draw");
         app.draw();

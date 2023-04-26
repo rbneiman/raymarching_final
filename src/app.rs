@@ -1,14 +1,11 @@
-use std::cell::RefCell;
 use std::f32;
 use std::rc::Rc;
 use js_sys::{Float32Array, Uint32Array};
 use web_sys::{WebGl2RenderingContext, HtmlCanvasElement, WebGlUniformLocation};
-use wasm_bindgen::{JsCast, JsValue};
-use crate::{log, log_error};
+use wasm_bindgen::JsValue;
 use crate::input::InputManager;
-use crate::shaders::{FRACTAL_FRAG_SHADER, FRAG_SHADER, PIXEL_VERT_SHADER, VERT_SHADER};
+use crate::shaders::{CLOUD_FRAG_SHADER, FRACTAL_FRAG_SHADER, FRAG_SHADER, PIXEL_VERT_SHADER, VERT_SHADER};
 use crate::vec_lib::mat4;
-use crate::vec_lib::mat4::Mat4f;
 use crate::vec_lib::vec3::Vec3f;
 use crate::webgl_utils::render_pass::{RenderPass, RenderPassConfig, UniformProvider};
 
@@ -19,6 +16,7 @@ pub struct TestApp{
     window: web_sys::Window,
     render_pass: RenderPass,
     fractal_render_pass: RenderPass,
+    cloud_render_pass: RenderPass,
     input_manager: Rc<InputManager>,
     cam_uniform_provider: Rc<CamProvider>,
     fractal_uniform_provider: Rc<FractalModelProvider>,
@@ -32,6 +30,8 @@ struct FractalModelProvider{
     input_manager: Rc<InputManager>,
 }
 
+
+
 static PIXEL_INDEX_VALS: [u32; 6] = [3,1,0, 0,2,3];
 static PIXEL_VERTS: [f32;8] = [-1.0,1.0,  1.0,1.0,  -1.0,-1.0,  1.0,-1.0];
 
@@ -40,11 +40,18 @@ static VERTS: [f32; 6] = [-1.0f32,1.0f32,  1.0f32,1.0f32,  1.0f32,-1.0f32];
 static CAM_POS : Vec3f = Vec3f::new(0.0, 0.0, -1.0);
 
 impl TestApp {
-    pub fn new(ctx: WebGl2RenderingContext, canvas: HtmlCanvasElement, window: web_sys::Window) -> Self{
+    pub fn new(ctx: WebGl2RenderingContext, canvas: HtmlCanvasElement, window: web_sys::Window)
+        -> Result<Self, String>{
         let indices = Uint32Array::new(&JsValue::from(INDEX_VALS.len()));
         let verts = Float32Array::new(&JsValue::from(VERTS.len()));
         indices.copy_from(&INDEX_VALS);
         verts.copy_from(&VERTS);
+
+        ctx.get_extension("EXT_color_buffer_float")
+            .or(Err("EXT_color_buffer_float extension not supported"))?;
+        ctx.get_extension("OES_texture_float_linear")
+            .or(Err("OES_texture_float_linear extension not supported"))?;
+
 
         let input_manager = Rc::new(InputManager::new(&canvas, &window));
         let cam_uniform_provider = Rc::new(CamProvider{input_manager: input_manager.clone()});
@@ -74,32 +81,26 @@ impl TestApp {
             .add_uniform(String::from("invViewMat"), fractal_uniform_provider.clone(), 1)
             .add_uniform(String::from("viewProjMat"), fractal_uniform_provider.clone(), 2);
 
-        let render_pass = Self::render_log_wrapper(ctx.clone(),render_pass_cfg);
-        let fractal_render_pass = Self::render_log_wrapper(ctx.clone(),fractal_pass_cfg);
+        let cloud_pass_cfg = Self::setup_pixel_shader(CLOUD_FRAG_SHADER.to_string())
+            .add_uniform(String::from("invProjMat"), fractal_uniform_provider.clone(), 0)
+            .add_uniform(String::from("invViewMat"), fractal_uniform_provider.clone(), 1)
+            .add_uniform(String::from("viewProjMat"), fractal_uniform_provider.clone(), 2);
 
+        let render_pass = render_pass_cfg.configure(ctx.clone())?;
+        let fractal_render_pass = fractal_pass_cfg.configure(ctx.clone())?;
+        let cloud_render_pass = cloud_pass_cfg.configure(ctx.clone())?;
 
-        TestApp{
+        Ok(TestApp{
             ctx,
             canvas,
             window,
             render_pass,
             fractal_render_pass,
+            cloud_render_pass,
             input_manager,
             cam_uniform_provider,
             fractal_uniform_provider
-        }
-    }
-
-    fn render_log_wrapper(gl: WebGl2RenderingContext, render_pass_cfg: RenderPassConfig) -> RenderPass{
-        match render_pass_cfg.configure(gl) {
-            Ok(res) =>{
-                Some(res)
-            }
-            Err(err)=>{
-                log_error!("{}", err.as_str());
-                None
-            }
-        }.expect("should not error")
+        })
     }
 
     fn setup_pixel_shader(frag_shader: String) -> RenderPassConfig{
@@ -135,12 +136,22 @@ impl TestApp {
     // }
 
     pub fn draw(&self){
+
+        // clear color, depth
+        // enable depth test
+        // raster geometry: color, depth, normals
+        // ray march geometry: color, depth, normals
+        // disable depth test
+        // shadow map
+
+
         self.ctx.clear_color(0.0, 0.37254903, 0.37254903, 1.0);
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);
         self.ctx.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT
             | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
         self.fractal_render_pass.draw();
         self.render_pass.draw();
+        self.cloud_render_pass.draw();
     }
 }
 

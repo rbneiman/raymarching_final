@@ -1,4 +1,3 @@
-use crate::log;
 use crate::vec_lib::mat4;
 use crate::vec_lib::mat4::Mat4f;
 use crate::vec_lib::vec3::Vec3f;
