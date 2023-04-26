@@ -149,14 +149,15 @@ impl TestApp {
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);
         self.ctx.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT
             | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
-        self.fractal_render_pass.draw();
+
         self.render_pass.draw();
+        self.fractal_render_pass.draw();
         self.cloud_render_pass.draw();
     }
 }
 
 impl UniformProvider for CamProvider{
-    fn update(&self, gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation, index: u32) {
+    fn update(&self, gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation, _index: u32) {
         let time = js_sys::Date::now() / 1000.0 % 100.0;
         let model = mat4::IDENTITY
             .translate(&Vec3f::new(0.0f32, 0.0f32, 5.0f32))

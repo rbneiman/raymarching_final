@@ -169,12 +169,14 @@ float mengerSpongeSdf(vec3 pos, out vec3 col){
 }
 
 vec3 mengerNormal(vec3 pos){
-    vec2 delta = vec2(0.0001, 0.0);
+    const float epsilon = 0.0001;
+    const vec2 delta = vec2(1, -1);
     vec3 col;
     return normalize(vec3(
-        mengerSpongeSdf(pos + delta.xyy, col) - mengerSpongeSdf(pos - delta.xyy, col),
-        mengerSpongeSdf(pos + delta.yxy, col) - mengerSpongeSdf(pos - delta.yxy, col),
-        mengerSpongeSdf(pos + delta.yyx, col) - mengerSpongeSdf(pos - delta.yyx, col)
+        delta.xyy * mengerSpongeSdf(pos + delta.xyy * epsilon, col) +
+        delta.yyx * mengerSpongeSdf(pos + delta.yyx * epsilon, col) +
+        delta.yxy * mengerSpongeSdf(pos + delta.yxy * epsilon, col) +
+        delta.xxx * mengerSpongeSdf(pos + delta.xxx * epsilon, col)
         ));
 }
 
@@ -251,7 +253,7 @@ void main () {
 //    fragColor = vec4(float(rayDir.x > 0.0), float(rayDir.y > 0.0), float(rayDir.z > 0.0), 1.0);
 
     if(dist < 0.0){
-        gl_FragDepth = 0.999;
+        gl_FragDepth = 1.0;
         fragColor = vec4(
             mix(vec3(0.0, BG, BG), vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), 1.0);
 //            clamp(), 0.0, 1.0-BG), 1.0);
@@ -319,7 +321,7 @@ float smoothmix(float a0, float a1, float w) {
         return (a1 - a0) * ((w * (w * 6.0 - 15.0) + 10.0) * w * w * w) + a0;
 }
 
-const float PERIODS[] = float[](40.0,20.0,1.0,5.0);
+const float PERIODS[] = float[](100.0, 50.0, 10.0, 50.0);
 const float WEIGHTS[] = float[](1.0,0.5,0.25,0.0135);
 
 float perlin3D(vec3 pos){
@@ -357,11 +359,77 @@ float perlin3D(vec3 pos){
         //val += weight * p2;
         val += weight * smoothmix(s5, s6, fracPos.z);
     }
-    return (clamp(val, 0.0, 1.0) * 2.0) - 1.0;
+    return val + 0.8;
+}
+
+float gridSphereSDF(vec3 floorPos, vec3 fracPos, vec3 off){
+    float radius = 0.5 * rand3D(floorPos + off);
+    return length(fracPos - off) - radius;
+}
+
+float sphereNoiseSDF(vec3 pos){
+    vec3 small_pos = pos;// / 50.0;
+    vec3 floorPos = floor(small_pos);
+    vec3 fracPos = fract(small_pos);
+    return min(
+        min(
+            min(
+                gridSphereSDF(floorPos, fracPos, vec3(0.0,0.0,0.0)),
+                gridSphereSDF(floorPos, fracPos, vec3(0.0,0.0,1.0))
+            ),
+            min(
+                gridSphereSDF(floorPos, fracPos, vec3(0.0,1.0,0.0)),
+                gridSphereSDF(floorPos, fracPos, vec3(0.0,1.0,1.0))
+            )
+        ),
+        min(
+            min(
+                gridSphereSDF(floorPos, fracPos, vec3(1.0,0.0,0.0)),
+                gridSphereSDF(floorPos, fracPos, vec3(1.0,0.0,1.0))
+            ),
+            min(
+                gridSphereSDF(floorPos, fracPos, vec3(1.0,1.0,0.0)),
+                gridSphereSDF(floorPos, fracPos, vec3(1.0,1.0,1.0))
+            )
+        )
+    );
+}
+
+float sphereFractalNoiseSDF(vec3 pos){
+//    float val = sphereNoiseSDF(pos / PERIODS[0]) * PERIODS[0];
+    float val = 100000.0;
+    for(int i=0; i<2; ++i){
+        float weight = WEIGHTS[i];
+//        float freq = 1.0/PERIODS[i];
+
+        vec3 noisePos = pos ;
+
+        //val += weight * p2;
+        val = min(val, weight * sphereNoiseSDF(noisePos / PERIODS[i]) * PERIODS[i]);
+    }
+    return val;
 }
 
 
-const float THRESH = 0.01;
+const float THRESH = 0.001;
+
+const float ITERATIONS = 20.0;
+const float TO_ADD = 1.0/20.0;
+const float STEP = 0.1;
+float volumeFactor(vec3 rayPos, vec3 rayDir){
+    float count = 0.0;
+    float t = 0.0;
+    for(int i=0; i<20; ++i){
+        vec3 pos = rayPos + t * rayDir;
+        float dist = perlin3D(pos);
+        if(dist < THRESH) count += TO_ADD;
+        t += STEP;
+
+    }
+    return count;
+}
+
+
 float cloudMarch(vec3 rayPos, vec3 rayDir){
 
 
@@ -370,26 +438,28 @@ float cloudMarch(vec3 rayPos, vec3 rayDir){
     float th;
     for(int i=0; i<150; ++i){
         vec3 pos = rayPos + t * rayDir;
-        dist = perlin3D(pos);
-        th = t* THRESH;// * (hash(rayDir.xy)*0.05+0.95);
+        dist = sphereFractalNoiseSDF(pos);
+        th = t * THRESH;// * (hash(rayDir.xy)*0.05+0.95);
         if(dist < th || dist > 500.0) break;
         t += dist;
     }
 
 
     if(dist< th){
-        return t;
+        return t; //volumeFactor(rayPos + t*rayDir, rayDir);
     }else{
         return -1.0;
     }
 }
 
 vec3 cloudNormal(vec3 pos){
-    vec2 delta = vec2(0.0001, 0.0);
+    const float epsilon = 0.0001;
+    const vec2 delta = vec2(1.0, -1.0);
     return normalize(vec3(
-        perlin3D(pos + delta.xyy) - perlin3D(pos - delta.xyy),
-        perlin3D(pos + delta.yxy) - perlin3D(pos - delta.yxy),
-        perlin3D(pos + delta.yyx) - perlin3D(pos - delta.yyx)
+        delta.xyy * sphereFractalNoiseSDF(pos + delta.xyy * epsilon) +
+        delta.yyx * sphereFractalNoiseSDF(pos + delta.yyx * epsilon) +
+        delta.yxy * sphereFractalNoiseSDF(pos + delta.yxy * epsilon) +
+        delta.xxx * sphereFractalNoiseSDF(pos + delta.xxx * epsilon)
         ));
 }
 
