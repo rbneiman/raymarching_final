@@ -171,7 +171,7 @@ float rayMarch(vec3 rayPos, vec3 rayDir, out vec3 col){
     for(int i=0; i<150; ++i){
         vec3 pos = rayPos + t * rayDir;
         dist = mengerSpongeSdf(pos, col);
-        th =  t * THRESH * (rand(rayDir.xy)*0.3+0.7);
+        th =  t * THRESH * (rand(vec2(t, rayPos.x))*0.2+0.8);
         if(dist < th || dist > 500.0) break;
         t += dist;
     }
@@ -187,7 +187,7 @@ float rayMarch(vec3 rayPos, vec3 rayDir, out vec3 col){
 const float BG = 0.37254903;
 void main () {
     vec3 rayDir = normalize(rayDirFrag);
-    vec3 rayPos = rayPosFrag;
+    vec3 rayPos = rayPosFrag + rayDir*0.0001;
     vec3 col;
     float dist = rayMarch(rayPos, rayDir, col);
     vec3 finalRayPos = rayPos + rayDir * dist;
@@ -198,7 +198,7 @@ void main () {
 //    fragColor = vec4(float(rayDir.x > 0.0), float(rayDir.y > 0.0), float(rayDir.z > 0.0), 1.0);
 
     if(dist < 0.0){
-        gl_FragDepth = 0.9999;
+        gl_FragDepth = 0.9999999;
         fragColor = vec4(
             mix(vec3(0.0, BG, BG), vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), 0.9999);
 //            clamp(), 0.0, 1.0-BG), 1.0);

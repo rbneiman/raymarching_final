@@ -44,14 +44,19 @@ float smoothmix(float a0, float a1, float w) {
 const float PERIODS[] = float[](100.0, 50.0, 20.0, 5.0);
 const float WEIGHTS[] = float[](1.0,0.5,0.05,0.00135);
 
+
+const float PERLIN_PERIODS[] = float[](2.0, 0.5, 0.2, 0.05);
+const float PERLIN_WEIGHTS[] = float[](0.5,0.25,0.135,0.725);
 float perlin3D(vec3 pos){
 
+    vec3 rotPos = ROT_MAT * pos;
     float val = 0.0;
     for(int i=0; i<1; ++i){
-        float weight = WEIGHTS[i];
-        float freq = 1.0/PERIODS[i];
+        float weight = PERLIN_WEIGHTS[i];
+        float freq = 1.0/PERLIN_PERIODS[i];
 
-        vec3 noisePos = pos * freq;
+        vec3 noisePos = rotPos * freq;
+        rotPos = ROT_MAT * rotPos;
         vec3 floorPos = floor(noisePos);
         vec3 fracPos = fract(noisePos);
 
@@ -79,7 +84,7 @@ float perlin3D(vec3 pos){
         //val += weight * p2;
         val += weight * smoothmix(s5, s6, fracPos.z);
     }
-    return val + 0.8;
+    return val + 0.1;
 }
 
 float gridSphereSDF(vec3 floorPos, vec3 fracPos, vec3 off){
@@ -123,7 +128,7 @@ float sphereFractalNoiseSDF(vec3 pos){
         float weight = WEIGHTS[i];
 //        float freq = 1.0/PERIODS[i];
 
-        noisePos = ROT_MAT * noisePos;
+//        noisePos = ROT_MAT * noisePos;
 
         //val += weight * p2;
         val += weight * sphereNoiseSDF(noisePos / PERIODS[i]) * PERIODS[i];
@@ -132,21 +137,26 @@ float sphereFractalNoiseSDF(vec3 pos){
 }
 
 
-const float THRESH = 0.01;
+const float THRESH = 0.0001;
 
 const float ITERATIONS = 20.0;
 const float TO_ADD = 1.0/20.0;
-const float STEP = 0.1;
-float volumeFactor(vec3 rayPos, vec3 rayDir){
+const float STEP = 1.0;
+// 0 clear, 1 opaque
+float volumeFactor(vec3 rayPos, vec3 rayDir, float t){
     float count = 0.0;
-    float t = 0.0;
-    for(int i=0; i<20; ++i){
+//    t += 1.0;
+//    float t = 0.0;
+    for(int i=0; i<100; ++i){
         vec3 pos = rayPos + t * rayDir;
         float dist = sphereFractalNoiseSDF(pos);
-        if(dist < THRESH) count += TO_ADD;
+        float density = clamp(perlin3D(pos) * 2.0, 0.0, 1.0);
+//        float th = t * THRESH; // * (hash(vec2(dist, dist))*0.20+0.80);
+        if(dist > 0.0001) break;
+        count += density * STEP;
         t += STEP;
     }
-    return count;
+    return exp(-count * 1.25);
 }
 
 
@@ -159,7 +169,7 @@ float cloudMarch(vec3 rayPos, vec3 rayDir){
     for(int i=0; i<150; ++i){
         vec3 pos = rayPos + t * rayDir;
         dist = sphereFractalNoiseSDF(pos);
-        th = t * THRESH * (hash(vec2(dist, rayDir.x))*0.20+0.80);
+        th =  THRESH;//* (hash(vec2(dist, rayDir.x))*0.20+0.80);
         if(dist < th || dist > 500.0) break;
         t += dist;
     }
@@ -205,12 +215,12 @@ void main () {
 
         vec3 normal = cloudNormal(finalRayPos);
 
-        float volumeFactor = volumeFactor(finalRayPos, rayDir);
+        float volumeFactor = volumeFactor(finalRayPos, rayDir, dist);
 
-        vec3 cloudCol = vec3(1.0, 1.0, 1.0)
-        * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0);
+        vec3 cloudCol = vec3(1.0, 1.0, 1.0);
+//        * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0);
 
-        vec3 col = mix(prevPass, cloudCol, volumeFactor);
+        vec3 col = mix(cloudCol, prevPass, volumeFactor);
         fragColor = vec4(col, 1.0);
     }
 }
