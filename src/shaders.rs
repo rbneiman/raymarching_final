@@ -287,6 +287,8 @@ void main () {
 pub static CLOUD_FRAG_SHADER: &str = r#"#version 300 es
 precision mediump float;
 
+uniform sampler2D colorTex;
+
 uniform mat4 invProjMat;
 uniform mat4 viewProjMat;
 

@@ -9,6 +9,7 @@ mod shaders;
 mod utils;
 mod app;
 mod input;
+mod render_passes;
 
 mod webgl_utils{
     pub mod render_pass;

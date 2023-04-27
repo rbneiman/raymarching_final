@@ -53,7 +53,8 @@ features = [
     "CanvasRenderingContext2d",
     "EventTarget",
     "MouseEvent",
-    "KeyboardEvent"
+    "KeyboardEvent",
+    "WebGlFramebuffer"
 ]
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
