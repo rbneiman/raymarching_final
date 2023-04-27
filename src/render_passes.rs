@@ -173,7 +173,8 @@ impl FractalRenderPass{
         let render_pass_cfg: RenderPassConfig = setup_pixel_shader(FRACTAL_FRAG_SHADER.to_string())
             .add_uniform(String::from("invProjMat"), uniform_provider.clone(), 0)
             .add_uniform(String::from("invViewMat"), uniform_provider.clone(), 1)
-            .add_uniform(String::from("viewProjMat"), uniform_provider.clone(), 2);
+            .add_uniform(String::from("viewProjMat"), uniform_provider.clone(), 2)
+            .add_uniform(String::from("time"), uniform_provider.clone(), 3);
         let render_pass = render_pass_cfg.configure(ctx.clone())?;
 
         let framebuffer = ctx.create_framebuffer()
@@ -217,6 +218,7 @@ impl CloudRenderPass{
             .add_uniform(String::from("invProjMat"), fractal_uniform_provider.clone(), 0)
             .add_uniform(String::from("invViewMat"), fractal_uniform_provider.clone(), 1)
             .add_uniform(String::from("viewProjMat"), fractal_uniform_provider.clone(), 2)
+            .add_uniform(String::from("time"), fractal_uniform_provider.clone(), 3)
             .add_texture(color_texture.clone(), String::from("colorTex"));
         let render_pass = render_pass_cfg.configure(ctx.clone())?;
         Ok(Self{
@@ -233,6 +235,11 @@ impl CloudRenderPass{
 
 impl UniformProvider for FractalUniformProvider{
     fn update(&self, gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation, index: u32) {
+        if index == 3 {
+            let time = js_sys::Date::now() / 1000.0 % 100.0;
+            gl.uniform1fv_with_f32_array(Some(loc), &[time as f32]);
+            return;
+        }
         let mat = match index {
             0 =>{
                 self.input_manager.proj_matrix().inverse().transpose()

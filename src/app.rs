@@ -68,6 +68,7 @@ impl TestApp {
         self.raster_pass.draw();
         self.fractal_pass.draw();
         // log!("3");
+        self.ctx.disable(WebGl2RenderingContext::DEPTH_TEST);
         self.cloud_pass.draw();
     }
 

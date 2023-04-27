@@ -3,7 +3,7 @@ precision mediump float;
 
 uniform mat4 invProjMat;
 uniform mat4 viewProjMat;
-
+uniform float time;
 
 in vec2 uv;
 in vec3 rayPosFrag;
@@ -193,15 +193,15 @@ void main () {
     vec3 finalRayPos = rayPos + rayDir * dist;
 //    vec3 lightDir = normalize(LIGHT_POS - finalRayPos);
     vec3 normal = mengerNormal(finalRayPos);
-    float shadowFactor = shadow(finalRayPos + normal * (0.01 + rand(vec2(dist)) * 0.02), LIGHT_DIR, 0.001, 500.0, 0.5);
+    float shadowFactor = shadow(finalRayPos + normal * (0.01 + rand(vec2(uv * time)) * 0.02), LIGHT_DIR, 0.001, 500.0, 0.5);
 
 //    fragColor = vec4(float(rayDir.x > 0.0), float(rayDir.y > 0.0), float(rayDir.z > 0.0), 1.0);
 
     if(dist < 0.0){
-        gl_FragDepth = 0.9999999;
+        gl_FragDepth = 0.999999;
+//        fragColor = vec4(vec3(0.4, 0.4, 0.41), -1.0);
         fragColor = vec4(
-            mix(vec3(0.0, BG, BG), vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), 0.9999);
-//            clamp(), 0.0, 1.0-BG), 1.0);
+            mix(vec3(0.4, 0.4, 0.41), vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), -1.0);
     }else{
         vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
         float depth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
@@ -210,15 +210,6 @@ void main () {
         fragColor = vec4(vec3(1.0, 1.0, 1.0)
         * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0)
         * shadowFactor
-        , depth);
+        , dist);
     }
-
-//    float clamped = clamp(dist, 0.0, THRESH);
-//    float factor = 1.0 - (clamped / THRESH);
-//    factor = factor * factor;
-//    factor = factor * factor;
-//    factor = factor * factor;
-//    factor = factor * factor;
-//    vec3 col = vec3(0.0, 0.0, 1.0) * factor * float(dist<THRESH);
-//    fragColor = vec4(col, 1.0);
 }
