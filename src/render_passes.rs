@@ -1,18 +1,22 @@
 use std::rc::Rc;
 use js_sys::{Float32Array, Uint32Array};
 use wasm_bindgen::JsValue;
-use web_sys::{WebGl2RenderingContext, WebGlUniformLocation, WebGlFramebuffer, WebGlTexture};
+use web_sys::{WebGl2RenderingContext, WebGlUniformLocation, WebGlFramebuffer, WebGlTexture,
+    WebGlRenderbuffer};
 use crate::input::InputManager;
 use crate::shaders::{CLOUD_FRAG_SHADER, FRACTAL_FRAG_SHADER, FRAG_SHADER, PIXEL_VERT_SHADER, VERT_SHADER};
 use crate::vec_lib::mat4;
 use crate::vec_lib::vec3::Vec3f;
 use crate::webgl_utils::render_pass::{RenderPass, RenderPassConfig, UniformProvider};
+use web_sys::WebGl2RenderingContext as gl;
+
 
 pub struct RasterRenderPass{
     ctx: WebGl2RenderingContext,
     render_pass: RenderPass,
     uniform_provider: Rc<RasterUniformProvider>,
     framebuffer: WebGlFramebuffer,
+    depth_buffer: WebGlRenderbuffer,
     color_texture: WebGlTexture,
 }
 
@@ -51,15 +55,15 @@ fn setup_pixel_shader(frag_shader: String) -> RenderPassConfig{
     RenderPassConfig::new(
         PIXEL_VERT_SHADER.to_string(),
         frag_shader,
-        WebGl2RenderingContext::TRIANGLES,
+        gl::TRIANGLES,
         6,
-        WebGl2RenderingContext::UNSIGNED_INT,
+        gl::UNSIGNED_INT,
         0
     )
     .set_index_buffer_data(indices)
     .add_attribute_data(String::from("vertPos"),
         2,
-    WebGl2RenderingContext::FLOAT,
+    gl::FLOAT,
         false,
         8,
         0,
@@ -84,15 +88,15 @@ impl RasterRenderPass{
         let render_pass_cfg: RenderPassConfig = RenderPassConfig::new(
             VERT_SHADER.to_string(),
             FRAG_SHADER.to_string(),
-            WebGl2RenderingContext::TRIANGLES,
+            gl::TRIANGLES,
             3,
-            WebGl2RenderingContext::UNSIGNED_INT,
+            gl::UNSIGNED_INT,
             0
         )
         .set_index_buffer_data(indices)
         .add_attribute_data(String::from("vertPos"),
         2,
-    WebGl2RenderingContext::FLOAT,
+    gl::FLOAT,
         false,
         8,
         0,
@@ -101,47 +105,113 @@ impl RasterRenderPass{
         .add_uniform(String::from("mvp"), uniform_provider.clone(),0);
         let render_pass = render_pass_cfg.configure(ctx.clone())?;
 
+        let color_texture = ctx.create_texture()
+            .ok_or(String::from("Failed to create color texture."))?;
+        ctx.tex_storage_2d(gl::TEXTURE_2D,
+                           1,
+            gl::RGBA32F,
+            1280, 960
+        );
+        ctx.tex_parameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        ctx.tex_parameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+        ctx.tex_parameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+
+        let framebuffer = ctx.create_framebuffer()
+            .ok_or(String::from("Failed to create frame buffer."))?;
+        ctx.bind_framebuffer(gl::FRAMEBUFFER, Some(&framebuffer));
+        ctx.framebuffer_texture_2d(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+                                   gl::TEXTURE_2D, Some(&color_texture), 0);
+
+        let depth_buffer = ctx.create_renderbuffer()
+            .ok_or(String::from("Failed to create depth buffer."))?;
+        ctx.bind_renderbuffer(gl::RENDERBUFFER, Some(&depth_buffer));
+
+        ctx.bind_framebuffer(gl::FRAMEBUFFER, None);
+
         Ok(Self{
             ctx,
             render_pass,
             uniform_provider,
+            framebuffer,
+            depth_buffer,
+            color_texture
         })
     }
 
+    pub fn depth_buffer(&self) -> &WebGlRenderbuffer{
+        &self.depth_buffer
+    }
+
+    pub fn color_texture(&self) -> &WebGlTexture{
+        &self.color_texture
+    }
+
     pub fn draw(&self){
+        self.ctx.bind_framebuffer(gl::FRAMEBUFFER, Some(&self.framebuffer));
+
+        let buffers = js_sys::Uint32Array::new(&JsValue::from(1));
+        buffers.copy_from(&[gl::COLOR_ATTACHMENT0]);
+        self.ctx.draw_buffers(&buffers);
+
+        self.ctx.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT
+            | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
         self.render_pass.draw();
+
+        self.ctx.bind_framebuffer(gl::FRAMEBUFFER, None);
     }
 }
 
 impl FractalRenderPass{
-    pub fn new(ctx: WebGl2RenderingContext, input_manager: Rc<InputManager>)
+    pub fn new(ctx: WebGl2RenderingContext, input_manager: Rc<InputManager>,
+               color_texture: &WebGlTexture, depth_buffer: &WebGlRenderbuffer)
         -> Result<Self, String>{
-        let fractal_uniform_provider = Rc::new(FractalUniformProvider{input_manager: input_manager.clone()});
+        let uniform_provider = Rc::new(FractalUniformProvider{input_manager: input_manager.clone()});
         let render_pass_cfg: RenderPassConfig = setup_pixel_shader(FRACTAL_FRAG_SHADER.to_string())
-            .add_uniform(String::from("invProjMat"), fractal_uniform_provider.clone(), 0)
-            .add_uniform(String::from("invViewMat"), fractal_uniform_provider.clone(), 1)
-            .add_uniform(String::from("viewProjMat"), fractal_uniform_provider.clone(), 2);
+            .add_uniform(String::from("invProjMat"), uniform_provider.clone(), 0)
+            .add_uniform(String::from("invViewMat"), uniform_provider.clone(), 1)
+            .add_uniform(String::from("viewProjMat"), uniform_provider.clone(), 2);
         let render_pass = render_pass_cfg.configure(ctx.clone())?;
+
+        let framebuffer = ctx.create_framebuffer()
+            .ok_or(String::from("Failed to create frame buffer."))?;
+        ctx.bind_framebuffer(gl::FRAMEBUFFER, Some(&framebuffer));
+        ctx.framebuffer_texture_2d(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+                                   gl::TEXTURE_2D, Some(&color_texture), 0);
+
+        ctx.bind_renderbuffer(gl::RENDERBUFFER, Some(&depth_buffer));
+        ctx.bind_framebuffer(gl::FRAMEBUFFER, None);
+
         Ok(Self{
             ctx,
             render_pass,
-            uniform_provider: fractal_uniform_provider
+            uniform_provider,
+            framebuffer
         })
     }
 
     pub fn draw(&self){
+        self.ctx.bind_framebuffer(gl::FRAMEBUFFER, Some(&self.framebuffer));
+
+        let buffers = js_sys::Uint32Array::new(&JsValue::from(1));
+        buffers.copy_from(&[gl::COLOR_ATTACHMENT0]);
+        self.ctx.draw_buffers(&buffers);
+
         self.render_pass.draw();
+
+        self.ctx.bind_framebuffer(gl::FRAMEBUFFER, None);
     }
 }
 
 impl CloudRenderPass{
-    pub fn new(ctx: WebGl2RenderingContext, input_manager: Rc<InputManager>)
+    pub fn new(ctx: WebGl2RenderingContext, input_manager: Rc<InputManager>,
+               color_texture: &WebGlTexture)
         -> Result<Self, String>{
         let fractal_uniform_provider = Rc::new(FractalUniformProvider{input_manager: input_manager.clone()});
         let render_pass_cfg: RenderPassConfig = setup_pixel_shader(CLOUD_FRAG_SHADER.to_string())
             .add_uniform(String::from("invProjMat"), fractal_uniform_provider.clone(), 0)
             .add_uniform(String::from("invViewMat"), fractal_uniform_provider.clone(), 1)
-            .add_uniform(String::from("viewProjMat"), fractal_uniform_provider.clone(), 2);
+            .add_uniform(String::from("viewProjMat"), fractal_uniform_provider.clone(), 2)
+            .add_texture(color_texture.clone(), String::from("colorTex"));
         let render_pass = render_pass_cfg.configure(ctx.clone())?;
         Ok(Self{
             ctx,
