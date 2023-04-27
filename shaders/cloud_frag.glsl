@@ -88,15 +88,15 @@ float perlin3D(vec3 pos){
 }
 
 float gridSphereSDF(vec3 floorPos, vec3 fracPos, vec3 off){
-    float radius = 0.5 * rand3D(floorPos + off);
+    float radius = 0.5 * (rand3D(floorPos + off) + 1.0) * 0.5;
     return length(fracPos - off) - radius;
 }
 
 float sphereNoiseSDF(vec3 pos){
-    vec3 small_pos = pos;// / 50.0;
+    vec3 small_pos = pos / 50.0;
     vec3 floorPos = floor(small_pos);
     vec3 fracPos = fract(small_pos);
-    return min(
+    return 50.0 * min(
         min(
             min(
                 gridSphereSDF(floorPos, fracPos, vec3(0.0,0.0,0.0)),
@@ -124,7 +124,7 @@ float sphereFractalNoiseSDF(vec3 pos){
 //    float val = sphereNoiseSDF(pos / PERIODS[0]) * PERIODS[0];
     float val = 0.0;
     vec3 noisePos = pos;
-    for(int i=0; i<3; ++i){
+    for(int i=0; i<1; ++i){
         float weight = WEIGHTS[i];
 //        float freq = 1.0/PERIODS[i];
 
@@ -137,26 +137,26 @@ float sphereFractalNoiseSDF(vec3 pos){
 }
 
 
-const float THRESH = 0.0001;
+const float THRESH = 0.00001;
 
-const float ITERATIONS = 20.0;
-const float TO_ADD = 1.0/20.0;
+const int ITERATIONS = 40;
+const float TO_ADD = 1.0/float(ITERATIONS);
 const float STEP = 1.0;
 // 0 clear, 1 opaque
 float volumeFactor(vec3 rayPos, vec3 rayDir, float t){
     float count = 0.0;
 //    t += 1.0;
 //    float t = 0.0;
-    for(int i=0; i<100; ++i){
+    for(int i=0; i<ITERATIONS; ++i){
         vec3 pos = rayPos + t * rayDir;
-        float dist = sphereFractalNoiseSDF(pos);
+        float dist = sphereNoiseSDF(pos);
         float density = clamp(perlin3D(pos) * 2.0, 0.0, 1.0);
 //        float th = t * THRESH; // * (hash(vec2(dist, dist))*0.20+0.80);
-        if(dist > 0.0001) break;
-        count += density * STEP;
+        if(dist < 0.0001) count += density * TO_ADD;
+
         t += STEP;
     }
-    return exp(-count * 1.25);
+    return exp(-count * 4.0);
 }
 
 
@@ -168,13 +168,19 @@ float cloudMarch(vec3 rayPos, vec3 rayDir){
     float th;
     for(int i=0; i<150; ++i){
         vec3 pos = rayPos + t * rayDir;
-        dist = sphereFractalNoiseSDF(pos);
+        dist = sphereNoiseSDF(pos);
         th =  THRESH;//* (hash(vec2(dist, rayDir.x))*0.20+0.80);
         if(dist < th || dist > 500.0) break;
+//        if(dist < th){
+//            for(int j=0; j<3; ++j){
+//
+//            }
+//            break;
+//        }
         t += dist;
     }
 
-
+//    t += dist;
     if(dist< th){
         return t; //volumeFactor(rayPos + t*rayDir, rayDir);
     }else{
@@ -183,23 +189,23 @@ float cloudMarch(vec3 rayPos, vec3 rayDir){
 }
 
 vec3 cloudNormal(vec3 pos){
-    const float epsilon = 0.0001;
+    const float epsilon = 0.001;
     const vec2 delta = vec2(1.0, -1.0);
     return normalize(vec3(
-        delta.xyy * sphereFractalNoiseSDF(pos + delta.xyy * epsilon) +
-        delta.yyx * sphereFractalNoiseSDF(pos + delta.yyx * epsilon) +
-        delta.yxy * sphereFractalNoiseSDF(pos + delta.yxy * epsilon) +
-        delta.xxx * sphereFractalNoiseSDF(pos + delta.xxx * epsilon)
+        delta.xyy * sphereNoiseSDF(pos + delta.xyy * epsilon) +
+        delta.yyx * sphereNoiseSDF(pos + delta.yyx * epsilon) +
+        delta.yxy * sphereNoiseSDF(pos + delta.yxy * epsilon) +
+        delta.xxx * sphereNoiseSDF(pos + delta.xxx * epsilon)
         ));
 }
 
 void main () {
     vec3 rayDir = normalize(rayDirFrag);
-    vec3 rayPos = rayPosFrag;
+    vec3 rayPos = rayPosFrag + rayDir*0.0001;
 
 //    vec3 zeroed = vec3(rayPos.xy, 0.0);
-    float dist = cloudMarch(rayPos, rayDir);
-    vec3 finalRayPos = rayPos + rayDir * dist;
+    float t = cloudMarch(rayPos, rayDir);
+    vec3 finalRayPos = rayPos + rayDir * t;
 
     vec3 prevPass = texture(colorTex, uv).rgb;
     float prevDepth = texture(colorTex, uv).a;
@@ -207,7 +213,7 @@ void main () {
     vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
     float depth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
 
-    if(depth > prevDepth || dist < 0.0){
+    if(depth > prevDepth || t == -1.0){
         gl_FragDepth = prevDepth;
         fragColor = vec4(prevPass, 1.0);
 //            clamp(), 0.0, 1.0-BG), 1.0);
@@ -215,11 +221,13 @@ void main () {
 
         vec3 normal = cloudNormal(finalRayPos);
 
-        float volumeFactor = volumeFactor(finalRayPos, rayDir, dist);
+        float volumeFactor = clamp(volumeFactor(rayPos, rayDir, t), 0.0, 1.0);
 
-        vec3 cloudCol = vec3(1.0, 1.0, 1.0);
-//        * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0);
+        float finalDist = sphereNoiseSDF(finalRayPos);
 
+        vec3 cloudCol = vec3(1.0, 1.0, 1.0);// * volumeFactor;
+        //* clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0);
+            //vec3(0.0, 0.37254903, 0.37254903)
         vec3 col = mix(cloudCol, prevPass, volumeFactor);
         fragColor = vec4(col, 1.0);
     }

@@ -63,7 +63,6 @@ impl TestApp {
         // disable depth test
         // shadow map
 
-
         self.ctx.clear_color(0.0, 0.37254903, 0.37254903, 1.0);
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);
         self.raster_pass.draw();
@@ -71,6 +70,7 @@ impl TestApp {
         // log!("3");
         self.cloud_pass.draw();
     }
+
 
 }
 
