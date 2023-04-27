@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use web_sys::{WebGl2RenderingContext, HtmlCanvasElement};
 use crate::input::InputManager;
+use crate::log;
 use crate::render_passes::{CloudRenderPass, FractalRenderPass, RasterRenderPass};
 use crate::vec_lib::vec3::Vec3f;
 
@@ -67,6 +68,7 @@ impl TestApp {
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);
         self.raster_pass.draw();
         self.fractal_pass.draw();
+        // log!("3");
         self.cloud_pass.draw();
     }
 }

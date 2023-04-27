@@ -107,6 +107,7 @@ impl RasterRenderPass{
 
         let color_texture = ctx.create_texture()
             .ok_or(String::from("Failed to create color texture."))?;
+        ctx.bind_texture(gl::TEXTURE_2D, Some(&color_texture));
         ctx.tex_storage_2d(gl::TEXTURE_2D,
                            1,
             gl::RGBA32F,
@@ -125,6 +126,9 @@ impl RasterRenderPass{
         let depth_buffer = ctx.create_renderbuffer()
             .ok_or(String::from("Failed to create depth buffer."))?;
         ctx.bind_renderbuffer(gl::RENDERBUFFER, Some(&depth_buffer));
+        ctx.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT16, 1280, 960);
+        ctx.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::RENDERBUFFER, Some(&depth_buffer));
+
 
         ctx.bind_framebuffer(gl::FRAMEBUFFER, None);
 
@@ -179,6 +183,8 @@ impl FractalRenderPass{
                                    gl::TEXTURE_2D, Some(&color_texture), 0);
 
         ctx.bind_renderbuffer(gl::RENDERBUFFER, Some(&depth_buffer));
+        ctx.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::RENDERBUFFER, Some(&depth_buffer));
+
         ctx.bind_framebuffer(gl::FRAMEBUFFER, None);
 
         Ok(Self{

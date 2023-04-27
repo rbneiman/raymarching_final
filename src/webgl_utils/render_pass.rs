@@ -3,7 +3,7 @@ use std::rc::Rc;
 use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlTexture, WebGlUniformLocation, WebGlVertexArrayObject};
 use js_sys::{Uint32Array, ArrayBuffer};
 use wasm_bindgen::{JsValue};
-use crate::log_warn;
+use crate::{log, log_warn};
 use crate::webgl_utils::utils::util_create_program;
 
 struct UnloadedTextureConfig{
@@ -216,17 +216,25 @@ impl RenderPassConfig{
         let mut texture_unit = 0u32;
         let mut textures: Vec<TextureInstance> = Vec::new();
         for texture_config in self.textures_loaded{
-            let loc =
+            let loc_res =
                 gl.get_uniform_location(&shader_program,texture_config.name.as_str())
-                .ok_or(format!("Failed to find texture '{}'", texture_config.name))?;
+                .ok_or(format!("Failed to find texture '{}'", texture_config.name));
+
+            if loc_res.is_err(){
+                log_warn!("Texture '{}' doesn't exist or was optimized out, Skipping.", texture_config.name);
+                continue;
+            }
+            let loc:WebGlUniformLocation = loc_res?;
+            // log!("tex loc: {}", loc.to_string().as_string().expect(""));
             let unit = texture_unit;
             texture_unit += 1;
-            let texture_enum = WebGl2RenderingContext::TEXTURE0 + unit;
+
+            // let texture_enum = WebGl2RenderingContext::TEXTURE0 + unit;
             textures.push(TextureInstance{
                 name: texture_config.name,
                 texture: texture_config.texture,
                 location: loc,
-                unit: texture_enum,
+                unit: unit,
             })
         }
 
@@ -268,7 +276,7 @@ impl RenderPass{
 
         for texture in &self.textures{
             gl.uniform1i(Some(&texture.location), texture.unit as i32);
-            gl.active_texture(texture.unit);
+            gl.active_texture(WebGl2RenderingContext::TEXTURE0 + texture.unit);
             gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&texture.texture));
         }
 

@@ -1,5 +1,4 @@
 #version 300 es
-// pycharm_glsl
 precision mediump float;
 
 uniform mat4 mvp;

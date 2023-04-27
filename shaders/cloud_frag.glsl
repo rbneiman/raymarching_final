@@ -191,21 +191,26 @@ void main () {
     float dist = cloudMarch(rayPos, rayDir);
     vec3 finalRayPos = rayPos + rayDir * dist;
 
-    if(dist < 0.0){
-        gl_FragDepth = 1.0;
-        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    vec3 prevPass = texture(colorTex, uv).rgb;
+    float prevDepth = texture(colorTex, uv).a;
+
+    vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
+    float depth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
+
+    if(depth > prevDepth || dist < 0.0){
+        gl_FragDepth = prevDepth;
+        fragColor = vec4(prevPass, 1.0);
 //            clamp(), 0.0, 1.0-BG), 1.0);
     }else{
-        vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
-        gl_FragDepth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
+
         vec3 normal = cloudNormal(finalRayPos);
-        fragColor = vec4(vec3(1.0, 1.0, 1.0)
-        * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0)
-        , volumeFactor(finalRayPos, rayDir));
+
+        float volumeFactor = volumeFactor(finalRayPos, rayDir);
+
+        vec3 cloudCol = vec3(1.0, 1.0, 1.0)
+        * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0);
+
+        vec3 col = mix(prevPass, cloudCol, volumeFactor);
+        fragColor = vec4(col, 1.0);
     }
-//    float noise = perlin3D(ROT_MAT*rayPos + rayDir*10.0);
-    //perlin3D(zeroed + 100.0 * vec3(uv, 0.0));
-//    float noise3d = rand3D(rayPos.xyz + 100.0 * rayDir);
-//    vec3 vec = unit_vec(rayPos + 100.0 * rayDir);
-//    fragColor = vec4(vec3(cloud), 1.0);
 }

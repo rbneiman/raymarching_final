@@ -198,18 +198,19 @@ void main () {
 //    fragColor = vec4(float(rayDir.x > 0.0), float(rayDir.y > 0.0), float(rayDir.z > 0.0), 1.0);
 
     if(dist < 0.0){
-        gl_FragDepth = 1.0;
+        gl_FragDepth = 0.9999;
         fragColor = vec4(
-            mix(vec3(0.0, BG, BG), vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), 1.0);
+            mix(vec3(0.0, BG, BG), vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), 0.9999);
 //            clamp(), 0.0, 1.0-BG), 1.0);
     }else{
         vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
-        gl_FragDepth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
+        float depth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
+        gl_FragDepth = depth;
 
         fragColor = vec4(vec3(1.0, 1.0, 1.0)
         * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0)
         * shadowFactor
-        , 1.0);
+        , depth);
     }
 
 //    float clamped = clamp(dist, 0.0, THRESH);
