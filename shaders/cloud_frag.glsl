@@ -192,7 +192,7 @@ float cloudMarch(vec3 rayPos, vec3 rayDir, float prevT, out float volumeFactor){
 //        }
         count += density * TO_ADD;
         t += 2.0 * STEP + 0.2 * t * 5.0 * STEP * clamp( 1.0 - density * 2.0 - hash(uv * time) * 0.2, 0.0, 1.0);
-//        if(count > 0.1) break;
+        if(count > 1.1) break;
 //        t += min(STEP, dist/2.0); //, STEP, 5.0);
 //        }else{
 //            t += max(STEP, dist);

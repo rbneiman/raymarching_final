@@ -236,7 +236,7 @@ impl CloudRenderPass{
 impl UniformProvider for FractalUniformProvider{
     fn update(&self, gl: &WebGl2RenderingContext, loc: &WebGlUniformLocation, index: u32) {
         if index == 3 {
-            let time = js_sys::Date::now() / 1000.0 % 100.0;
+            let time = js_sys::Date::now() / 1000.0 % 10000.0;
             gl.uniform1fv_with_f32_array(Some(loc), &[time as f32]);
             return;
         }

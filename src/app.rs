@@ -72,6 +72,5 @@ impl TestApp {
         self.cloud_pass.draw();
     }
 
-
 }
 
