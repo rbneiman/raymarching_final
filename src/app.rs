@@ -2,7 +2,7 @@ use std::rc::Rc;
 use web_sys::{WebGl2RenderingContext, HtmlCanvasElement};
 use crate::input::InputManager;
 use crate::log;
-use crate::render_passes::{CloudRenderPass, FractalRenderPass, RasterRenderPass};
+use crate::render_passes::{CloudRenderPass, DemoRenderPass, FractalRenderPass, RasterRenderPass};
 use crate::vec_lib::vec3::Vec3f;
 
 
@@ -11,6 +11,7 @@ pub struct TestApp{
     canvas: HtmlCanvasElement,
     window: web_sys::Window,
     raster_pass: RasterRenderPass,
+    demo_pass: DemoRenderPass,
     fractal_pass: FractalRenderPass,
     cloud_pass: CloudRenderPass,
     input_manager: Rc<InputManager>,
@@ -27,9 +28,11 @@ impl TestApp {
         ctx.get_extension("OES_texture_float_linear")
             .or(Err("OES_texture_float_linear extension not supported"))?;
 
-        let input_manager = Rc::new(InputManager::new(&canvas, &window));
+        let input_manager_res = InputManager::new(&canvas, &window)?;
+        let input_manager = Rc::new(input_manager_res);
 
         let raster_pass = RasterRenderPass::new(ctx.clone(), input_manager.clone())?;
+        let demo_pass = DemoRenderPass::new(ctx.clone(), input_manager.clone())?;
         let fractal_pass: FractalRenderPass = FractalRenderPass::new(ctx.clone(), input_manager.clone(),
             raster_pass.color_texture(), raster_pass.depth_buffer()
         )?;
@@ -41,6 +44,7 @@ impl TestApp {
             canvas,
             window,
             raster_pass,
+            demo_pass,
             fractal_pass,
             cloud_pass,
             input_manager,
@@ -55,13 +59,6 @@ impl TestApp {
     // }
 
     pub fn draw(&self){
-
-        // clear color, depth
-        // enable depth test
-        // raster geometry: color, depth, normals
-        // ray march geometry: color, depth, normals
-        // disable depth test
-        // shadow map
 
         self.ctx.clear_color(0.0, 0.37254903, 0.37254903, 1.0);
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);

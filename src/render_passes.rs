@@ -4,7 +4,7 @@ use wasm_bindgen::JsValue;
 use web_sys::{WebGl2RenderingContext, WebGlUniformLocation, WebGlFramebuffer, WebGlTexture,
     WebGlRenderbuffer};
 use crate::input::InputManager;
-use crate::shaders::{CLOUD_FRAG_SHADER, FRACTAL_FRAG_SHADER, FRAG_SHADER, PIXEL_VERT_SHADER, VERT_SHADER};
+use crate::shaders::{CLOUD_FRAG_SHADER, DEMO_FRAG_SHADER, FRACTAL_FRAG_SHADER, FRAG_SHADER, PIXEL_VERT_SHADER, VERT_SHADER};
 use crate::vec_lib::mat4;
 use crate::vec_lib::vec3::Vec3f;
 use crate::webgl_utils::render_pass::{RenderPass, RenderPassConfig, UniformProvider};
@@ -18,6 +18,12 @@ pub struct RasterRenderPass{
     framebuffer: WebGlFramebuffer,
     depth_buffer: WebGlRenderbuffer,
     color_texture: WebGlTexture,
+}
+
+pub struct DemoRenderPass{
+    ctx: WebGl2RenderingContext,
+    render_pass: RenderPass,
+    uniform_provider: Rc<FractalUniformProvider>,
 }
 
 pub struct FractalRenderPass{
@@ -162,6 +168,29 @@ impl RasterRenderPass{
         self.render_pass.draw();
 
         self.ctx.bind_framebuffer(gl::FRAMEBUFFER, None);
+    }
+}
+
+impl DemoRenderPass {
+    pub fn new(ctx: WebGl2RenderingContext, input_manager: Rc<InputManager>)
+        -> Result<Self, String>{
+        let uniform_provider = Rc::new(FractalUniformProvider{input_manager: input_manager.clone()});
+        let render_pass_cfg: RenderPassConfig = setup_pixel_shader(DEMO_FRAG_SHADER.to_string())
+            .add_uniform(String::from("invProjMat"), uniform_provider.clone(), 0)
+            .add_uniform(String::from("invViewMat"), uniform_provider.clone(), 1)
+            .add_uniform(String::from("viewProjMat"), uniform_provider.clone(), 2)
+            .add_uniform(String::from("time"), uniform_provider.clone(), 3);
+        let render_pass = render_pass_cfg.configure(ctx.clone())?;
+
+        Ok(Self{
+            ctx,
+            render_pass,
+            uniform_provider
+        })
+    }
+
+    pub fn draw(&self){
+        self.render_pass.draw();
     }
 }
 
