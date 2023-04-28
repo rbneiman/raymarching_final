@@ -190,6 +190,8 @@ impl DemoRenderPass {
     }
 
     pub fn draw(&self){
+        self.ctx.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT
+            | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
         self.render_pass.draw();
     }
 }

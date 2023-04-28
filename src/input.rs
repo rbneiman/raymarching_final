@@ -21,7 +21,8 @@ enum Keys{
 struct InputManagerContents{
     camera: FPSCamera,
     last_time: f64,
-    keys_down: [bool;6]
+    keys_down: [bool;6],
+    mode: u32,
 }
 
 pub struct InputManager{
@@ -36,7 +37,7 @@ impl InputManager {
         -> Result<Self, String> {
         let time = js_sys::Date::now();
         let camera = FPSCamera::new(
-            Vec3f::new(0.0, 0.0, 0.0),
+            Vec3f::new(0.0, 1.0, 0.0),
             Vec3f::new(0.0, 0.0, 1.0),
             Vec3f::new(0.0, 1.0, 0.0),
             45.0,
@@ -48,7 +49,8 @@ impl InputManager {
         let cell = RefCell::new(InputManagerContents {
             camera,
             last_time: time,
-            keys_down: [false; 6]
+            keys_down: [false; 6],
+            mode: 1,
         });
         let rc = Rc::new(cell);
 
@@ -111,6 +113,10 @@ impl InputManager {
     pub fn position(&self) -> Vec3f{
         self.contents.borrow_mut().camera.position()
     }
+
+    pub fn mode(&self) -> u32{
+        self.contents.borrow_mut().mode
+    }
 }
 
 impl InputManagerContents{
@@ -137,6 +143,11 @@ impl InputManagerContents{
     fn key_down(&mut self, key_event: KeyboardEvent){
         // log!("key down");
         let key = key_event.key().to_lowercase();
+
+        if key_event.repeat(){
+            return;
+        }
+
         match key.as_str() {
             "w" =>{
                 self.keys_down[Keys::KeyW as usize] = true;
@@ -157,6 +168,12 @@ impl InputManagerContents{
                 self.keys_down[Keys::KeySpace as usize] = true;
                 key_event.prevent_default();
             },
+            "1" =>{
+                self.mode = 1;
+            }
+            "2" =>{
+                self.mode = 2;
+            }
             _ =>{
                 log!("Pressed key '{}'", key);
             }

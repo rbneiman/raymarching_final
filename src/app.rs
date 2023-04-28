@@ -17,8 +17,6 @@ pub struct TestApp{
     input_manager: Rc<InputManager>,
 }
 
-static CAM_POS : Vec3f = Vec3f::new(0.0, 0.0, -1.0);
-
 impl TestApp {
     pub fn new(ctx: WebGl2RenderingContext, canvas: HtmlCanvasElement, window: web_sys::Window)
         -> Result<Self, String>{
@@ -51,7 +49,6 @@ impl TestApp {
         })
     }
 
-
     // fn mat_to_str(mat : &Mat4f) -> String{
     //     let out = String::new();
     //     let vals = mat.vals();
@@ -59,15 +56,23 @@ impl TestApp {
     // }
 
     pub fn draw(&self){
-
         self.ctx.clear_color(0.0, 0.37254903, 0.37254903, 1.0);
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);
-        self.raster_pass.draw();
-        self.fractal_pass.draw();
-        // log!("3");
-        self.ctx.disable(WebGl2RenderingContext::DEPTH_TEST);
-        self.cloud_pass.draw();
+
+
+        match self.input_manager.mode() {
+            1 =>{
+                self.demo_pass.draw();
+            },
+            _ =>{
+                self.raster_pass.draw();
+                self.fractal_pass.draw();
+                self.ctx.disable(WebGl2RenderingContext::DEPTH_TEST);
+                self.cloud_pass.draw();
+            }
+        };
     }
+
 
 }
 
