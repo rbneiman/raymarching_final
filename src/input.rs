@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{HtmlCanvasElement, MouseEvent, KeyboardEvent};
 use crate::log;
 use crate::vec_lib::mat4::Mat4f;
@@ -32,7 +32,8 @@ const MOVE_SPEED : f32 = 1.0;
 const ROT_SPEED : f32 = 0.01;
 
 impl InputManager {
-    pub fn new(canvas: &HtmlCanvasElement, window: &web_sys::Window) -> Self {
+    pub fn new(canvas: &HtmlCanvasElement, window: &web_sys::Window)
+        -> Result<Self, String> {
         let time = js_sys::Date::now();
         let camera = FPSCamera::new(
             Vec3f::new(0.0, 0.0, 0.0),
@@ -78,13 +79,16 @@ impl InputManager {
             (*rc.borrow_mut()).poll_keys();
         });
 
-        canvas.add_event_listener_with_callback("mousedown", mouse_down_closure.as_ref().unchecked_ref());
-        canvas.add_event_listener_with_callback("mouseup", mouse_up_closure.as_ref().unchecked_ref());
-        canvas.add_event_listener_with_callback("mousemove", mouse_move_closure.as_ref().unchecked_ref());
-        window.add_event_listener_with_callback("keydown", key_down_closure.as_ref().unchecked_ref());
-        window.add_event_listener_with_callback("keyup", key_up_closure.as_ref().unchecked_ref());
+        (|| -> Result<(),JsValue>{
+        canvas.add_event_listener_with_callback("mousedown", mouse_down_closure.as_ref().unchecked_ref())?;
+        canvas.add_event_listener_with_callback("mouseup", mouse_up_closure.as_ref().unchecked_ref())?;
+        canvas.add_event_listener_with_callback("mousemove", mouse_move_closure.as_ref().unchecked_ref())?;
+        window.add_event_listener_with_callback("keydown", key_down_closure.as_ref().unchecked_ref())?;
+        window.add_event_listener_with_callback("keyup", key_up_closure.as_ref().unchecked_ref())
+        })().map_err(|_|->String{String::from("Add event listener failed.")})?;
         window.set_interval_with_callback_and_timeout_and_arguments_0(
-        poll_input_closure.as_ref().unchecked_ref(), 4);
+        poll_input_closure.as_ref().unchecked_ref(), 4)
+        .map_err(|_| String::from("Input poll callback init failed."))?;
 
         mouse_down_closure.forget();
         mouse_up_closure.forget();
@@ -93,7 +97,7 @@ impl InputManager {
         key_up_closure.forget();
         poll_input_closure.forget();
 
-        input_manager
+        Ok(input_manager)
     }
 
     pub fn proj_matrix(&self) -> Mat4f{
