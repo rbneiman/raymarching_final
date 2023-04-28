@@ -60,6 +60,7 @@ impl TestApp {
         self.ctx.enable(WebGl2RenderingContext::DEPTH_TEST);
 
 
+
         match self.input_manager.mode() {
             1 =>{
                 self.demo_pass.draw();
@@ -72,5 +73,7 @@ impl TestApp {
             }
         };
     }
+
+
 }
 

@@ -184,15 +184,15 @@ float rayCast(vec3 rayPos, vec3 rayDir, out vec3 col){
     }else{
         vec3 ambient = 0.3 * col;
         vec3 diffuse = 0.5 * col * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0);
-        vec3 reflectDir = reflect(rayDir, normal);
-        vec3 specular = 0.2 * col * max(dot(-rayDir, reflectDir), 0.0);
-        vec3 col = ambient + shadowFactor * (diffuse + specular);
-//
-//        col = col*0.2 + col
+        vec3 reflectDir = reflect(LIGHT_DIR, normal);
+        vec3 specular = vec3(0.2) * pow(max(dot(rayDir, reflectDir), 0.0), 2.05);
+        col = ambient + diffuse + specular;
+        col *= shadowFactor;
+        col *= 1.3;
 //        * (0.5 *  + 0.5)
 //        + col shadowFactor * 0.8;
-        col *= 1.7;
-        col = mix(col, BG, smoothstep(0.6, 1.0, clamp(dist/100.0, 0.0, 1.0)));
+//        col *= 1.7;
+
         return dist;
     }
 }
@@ -211,7 +211,7 @@ vec3 rand_vec(in vec3 xyz) {
 
 
 vec3 smallScatter(vec3 rayDir, vec3 seed){
-    return normalize(rayDir*0.999 + rand_vec(rayDir)*0.001);
+    return normalize(rayDir*0.995 + rand_vec(rayDir)*0.005);
 }
 
 void main () {
@@ -236,8 +236,10 @@ void main () {
         vec3 reflectDir = reflect(rayDir, normal);
         float reflection = rayCast(finalRayPos + normal * 0.01, smallScatter(reflectDir, finalRayPos), reflectCol);
         vec3 reflectPos = finalRayPos + normal * 0.01 + reflection * reflectDir;
-        col = col * 0.6 + col * length(reflectCol) * 0.4;
+        reflectCol = mix(reflectCol, BG, smoothstep(0.6, 1.0, clamp(reflection/100.0, 0.0, 1.0)));
+        col = col + reflectCol * 0.1;
     }
-
+    col = mix(col, BG, smoothstep(0.6, 1.0, clamp(dist/100.0, 0.0, 1.0)));
+    col = 1.0 - exp(-col * 2.0);
     fragColor = vec4(col, 1.0);
 }
