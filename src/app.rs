@@ -72,7 +72,5 @@ impl TestApp {
             }
         };
     }
-
-
 }
 

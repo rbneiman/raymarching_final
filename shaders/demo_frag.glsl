@@ -11,6 +11,7 @@ in vec3 rayDirFrag;
 
 out vec4 fragColor;
 
+const float PI_2_10 = (2.0*3.14159265359)/10.0;
 const vec3 LIGHT_DIR = normalize(vec3(-1, 1, -1));
 const float THRESH = 0.0001;
 
@@ -41,10 +42,70 @@ vec2 colorCheck(vec2 shape1, vec2 shape2){
     return (shape1.x < shape2.x) ? shape1 : shape2;
 }
 
-vec2 sceneSDF(vec3 pos){
-    vec2 res = vec2(pos.y, 0.0);
+float cubeSDF(vec3 pos){
+    vec3 b = vec3(1.0);
+    vec3 q = abs(pos) - b;
+    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
 
-    res = colorCheck(res, vec2(sphereSDF(pos - vec3(1.0, 1.0, 1.0), 1.0), 23.0));
+float sdCross(vec3 pos){
+  float da = cubeSDF(vec3(pos.xy, 0.0));
+  float db = cubeSDF(vec3(pos.yz, 0.0));
+  float dc = cubeSDF(vec3(pos.zx, 0.0));
+  return min(da,min(db,dc));
+}
+
+float sdCrossBounded(vec3 pos){
+    float da = boxSDF(pos, vec3(1.0, 0.333, 0.333));
+    float db = boxSDF(pos, vec3(0.333, 1.0, 0.333));
+    float dc = boxSDF(pos, vec3(0.333, 0.333, 1.0));
+    return min(da,min(db,dc));
+}
+
+//const int MENGER_ITER = 6;
+float mengerSpongeSdf(vec3 pos, int iter){
+    float dist = cubeSDF(pos);
+
+    float scale = 1.0;
+    for(int i=0; i<iter; ++i){
+        vec3 posScaled = mod(pos*scale, 2.0) - 1.0;
+        scale *= 3.0;
+        vec3 posScaledTranslated = 1.0 - 3.0*abs(posScaled);
+
+
+        float crossDist = sdCross(posScaledTranslated)/scale;
+        dist = max(dist, crossDist);
+    }
+
+    return dist;
+}
+
+vec2 sceneSDF(vec3 pos){
+    vec2 res = vec2(pos.y,
+        float(sin(pos.x*PI_2_10)*sin(pos.z*PI_2_10) < 0.0)
+    );
+
+    if(boxSDF(pos - vec3(0.0, 0.0, 6.0), vec3(31.0, 1.0, 6.0)) < res.x){
+        res = colorCheck(res, vec2(sphereSDF(pos - vec3(0.0, 1.1, 6.0), 1.0), 23.0));
+        res = colorCheck(res, vec2(boxSDF(pos - vec3(6.0, 2.2, 6.0), vec3(1.0, 2.0, 1.0)), 25.0));
+        res = colorCheck(res, vec2(torus(pos - vec3(12.0, 1.0, 6.0), vec2(1.5, 0.5)), 27.0));
+        res = colorCheck(res, vec2(link(pos - vec3(18.0, 3.0, 6.0), 1.0, 1.0, 0.5), 29.0));
+        res = colorCheck(res, vec2(sdCrossBounded(pos - vec3(24.0, 1.1, 6.0)), 32.0));
+        res = colorCheck(res, vec2(cubeSDF(pos - vec3(30.0, 1.1, 6.0)), 32.0));
+    }
+
+    if(cubeSDF(pos - vec3(36.0, 1.1, 6.0)) < res.x){
+        res = colorCheck(res, vec2(mengerSpongeSdf(pos - vec3(36.0, 1.1, 6.0), 1), 32.0));
+    }
+    if(cubeSDF(pos - vec3(42.0, 1.1, 6.0)) < res.x){
+        res = colorCheck(res, vec2(mengerSpongeSdf(pos - vec3(42.0, 1.1, 6.0), 2), 32.0));
+    }
+    if(cubeSDF(pos - vec3(48.0, 1.1, 6.0)) < res.x){
+        res = colorCheck(res, vec2(mengerSpongeSdf(pos - vec3(48.0, 1.1, 6.0), 8), 32.0));
+    }
+
+
+
 
     return res;
 }
@@ -106,34 +167,77 @@ vec3 sceneNormal(vec3 pos){
         ));
 }
 
-const vec3 BG = vec3(0.0, 0.37254903, 0.37254903);
-const vec3 FOG = vec3(0.0, 0.37254903, 0.37254903);
+const vec3 BG = vec3(0.3, 0.7254903, 0.7254903) * 1.7;
+//const vec3 FOG = vec3(0.0, 0.37254903, 0.37254903);
+
+float rayCast(vec3 rayPos, vec3 rayDir, out vec3 col){
+    float dist = rayMarch(rayPos, rayDir, col);
+    vec3 finalRayPos = rayPos + rayDir * dist;
+
+    vec3 normal = sceneNormal(finalRayPos);
+    float shadowFactor = shadow(finalRayPos + normal * 0.01, LIGHT_DIR, 0.001, 500.0, 0.3);
+
+
+    if(dist > 200.0 || dist < 0.0){
+        col = mix(BG, vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR)));
+        return -1.0;
+    }else{
+        vec3 ambient = 0.3 * col;
+        vec3 diffuse = 0.5 * col * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0);
+        vec3 reflectDir = reflect(rayDir, normal);
+        vec3 specular = 0.2 * col * max(dot(-rayDir, reflectDir), 0.0);
+        vec3 col = ambient + shadowFactor * (diffuse + specular);
+//
+//        col = col*0.2 + col
+//        * (0.5 *  + 0.5)
+//        + col shadowFactor * 0.8;
+        col *= 1.7;
+        col = mix(col, BG, smoothstep(0.6, 1.0, clamp(dist/100.0, 0.0, 1.0)));
+        return dist;
+    }
+}
+
+float hash(vec2 p){
+        p  = 50.0*fract( p*0.3183099  + vec2(0.71,0.113));
+        return -1.0+2.0*fract( p.x*p.y*(p.x+p.y) );
+}
+
+vec3 rand_vec(in vec3 xyz) {
+        float rand1 = hash(xyz.xy * xyz.z);
+        float rand2 = hash(vec2(rand1, xyz.z));
+        float rand3 = hash(vec2(rand1, rand2));
+        return vec3(rand1, rand2, rand3);
+}
+
+
+vec3 smallScatter(vec3 rayDir, vec3 seed){
+    return normalize(rayDir*0.999 + rand_vec(rayDir)*0.001);
+}
+
 void main () {
     vec3 rayDir = normalize(rayDirFrag);
     vec3 rayPos = rayPosFrag + rayDir * 0.0001;
 
     vec3 col;
-    float dist = rayMarch(rayPos, rayDir, col);
+    float dist = rayCast(rayPos, rayDir, col);
     vec3 finalRayPos = rayPos + rayDir * dist;
-    vec3 normal = sceneNormal(finalRayPos);
-    float shadowFactor = shadow(finalRayPos + normal * 0.01, LIGHT_DIR, 0.001, 500.0, 0.3);
 
 
 
     if(dist > 200.0 || dist < 0.0){
         gl_FragDepth = 0.999999;
-        fragColor = vec4(
-            mix(BG, vec3(1.0, 1.0, 0.90), smoothstep( 0.999, 1.0, dot(rayDir, LIGHT_DIR))), 1.0);
     }else{
         vec4 projCoords = viewProjMat * vec4(finalRayPos, 1.0);
         float depth = ((projCoords.z / projCoords.w) + 1.0) * 0.5;
         gl_FragDepth = depth;
 
-        col = col
-        * clamp(dot(normal, normalize(LIGHT_DIR)), 0.01, 1.0)
-        * shadowFactor;
-        col = mix(col, FOG, smoothstep(0.6, 1.0, clamp(dist/500.0, 0.0, 1.0)));
-
-        fragColor = vec4(col, 1.0);
+        vec3 normal = sceneNormal(finalRayPos);
+        vec3 reflectCol;
+        vec3 reflectDir = reflect(rayDir, normal);
+        float reflection = rayCast(finalRayPos + normal * 0.01, smallScatter(reflectDir, finalRayPos), reflectCol);
+        vec3 reflectPos = finalRayPos + normal * 0.01 + reflection * reflectDir;
+        col = col * 0.6 + col * length(reflectCol) * 0.4;
     }
+
+    fragColor = vec4(col, 1.0);
 }
