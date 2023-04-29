@@ -6,4 +6,7 @@ In order to run this project, you can either compile this yourself, by installin
 npm commands in the README.md, or by running a webserver over the included pre-compiled version of this project
 located in the ./dist folder.
 
-The source for this project is also hosted at https://github.com/rbneiman/raymarching_final.
+The writeup for this project is located at "./graphics final report.pdf"
+
+
+The repository for this project is publicly hosted at https://github.com/rbneiman/raymarching_final
