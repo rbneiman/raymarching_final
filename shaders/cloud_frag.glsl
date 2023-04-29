@@ -51,7 +51,7 @@ const float WEIGHTS[] = float[](1.0,0.5,0.05,0.00135);
 
 const float PERLIN_PERIODS[] = float[](80.0, 30.0, 2.0, 0.5);
 const float PERLIN_WEIGHTS[] = float[](80.0,8.0,7.0,2.0);
-const float PERLIN_OFFSETS[] = float[](-18.0,-1.8,0.0,0.0);
+const float PERLIN_OFFSETS[] = float[](-12.0,-1.8,0.0,0.0);
 
 
 float perlin3D(vec3 pos){
@@ -63,7 +63,7 @@ float perlin3D(vec3 pos){
         float freq = 1.0/PERLIN_PERIODS[i];
 
         vec3 noisePos = rotPos * freq;
-        rotPos = ROT_MAT * rotPos;
+//        rotPos = ROT_MAT * rotPos;
         vec3 floorPos = floor(noisePos);
         vec3 fracPos = fract(noisePos);
 
@@ -96,9 +96,9 @@ float perlin3D(vec3 pos){
 
 const float THRESH = 0.001;
 
-const int ITERATIONS = 150;
+const int ITERATIONS = 100;
 const float TO_ADD = 1.0/float(ITERATIONS);
-const float STEP = 2.0;
+const float STEP = 4.0;
 
 float cloudMarch(vec3 rayPos, vec3 rayDir, float prevT, out float volumeFactor){
 
@@ -106,6 +106,7 @@ float cloudMarch(vec3 rayPos, vec3 rayDir, float prevT, out float volumeFactor){
     float t = 0.0;
     float dist;
     float th;
+    float breakThresh = (count + 1.2 - hash(uv * time) * 0.4);
     for(int i=0; i<ITERATIONS; ++i){
         vec3 pos = rayPos + t * rayDir;
         th =  THRESH * (hash(vec2(dist, rayDir.x))*0.20+0.80);
@@ -122,7 +123,7 @@ float cloudMarch(vec3 rayPos, vec3 rayDir, float prevT, out float volumeFactor){
         + 2.0 * STEP
         - 2.5 * STEP * densityFactor;
         if(count > 0.3) break;
-        if(t * (count + 1.2 - hash(uv * time) * 0.4) > prevT) break;
+        if(t * breakThresh > prevT) break;
     }
 
     volumeFactor = clamp(exp(-count * 20.0) * 2.0, 0.0, 1.0); // * (1.0-exp(-count * 2.0));
@@ -147,7 +148,7 @@ void main () {
     vec3 prevPass = texture(colorTex, uv).rgb;
     float prevT = texture(colorTex, uv).a;
     if(prevT < 0.0){
-        prevT = 700.0;
+        prevT = 300.0;
     }
 
     float volumeFactor;

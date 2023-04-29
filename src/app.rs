@@ -66,14 +66,14 @@ impl TestApp {
                 self.demo_pass.draw();
             },
             _ =>{
-                self.raster_pass.draw();
+                // self.raster_pass.draw();
+
                 self.fractal_pass.draw();
-                self.ctx.disable(WebGl2RenderingContext::DEPTH_TEST);
+                // self.ctx.disable(WebGl2RenderingContext::DEPTH_TEST);
                 self.cloud_pass.draw();
             }
         };
     }
-
 
 }
 

@@ -80,6 +80,45 @@ float mengerSpongeSdf(vec3 pos, int iter){
     return dist;
 }
 
+const int ITERATIONS = 4;
+const float POWER = 3.5;
+float calcBulbDist(vec3 pos){
+    vec3 w = pos;
+    float m = dot(w,w);
+    float dz = 1.0;
+	for (int i = 0; i < ITERATIONS ; i++) {
+        // dz = 8*z^7*dz
+		dz = 8.0*pow(m,POWER)*dz + 1.0;
+
+        // z = z^8+c
+        float r = length(w);
+        float b = 8.0*acos( w.y/r);
+        float a = 8.0*atan( w.x, w.z );
+        w = pos + pow(r,8.0) * vec3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
+        m = dot(w,w);
+		if( m > 1200.0 )
+            break;
+	}
+	return 0.25*log(m)*sqrt(m)/dz;
+}
+
+float mengerBulbSdf(vec3 pos, int iter){
+    float dist = calcBulbDist(pos);
+
+    float scale = 1.0;
+    for(int i=0; i<iter; ++i){
+        vec3 posScaled = mod(pos*scale, 2.0) - 1.0;
+        scale *= 3.0;
+        vec3 posScaledTranslated = 1.0 - 3.0*abs(posScaled);
+
+
+        float crossDist = sdCross(posScaledTranslated)/scale;
+        dist = max(dist, crossDist);
+    }
+
+    return dist;
+}
+
 vec2 sceneSDF(vec3 pos){
     vec2 res = vec2(pos.y,
         float(sin(pos.x*PI_2_10)*sin(pos.z*PI_2_10) < 0.0)
@@ -104,7 +143,13 @@ vec2 sceneSDF(vec3 pos){
         res = colorCheck(res, vec2(mengerSpongeSdf(pos - vec3(48.0, 1.1, 6.0), 8), 32.0));
     }
 
+    if(sphereSDF(pos - vec3(56.0, 1.1, 6.0), 1.3) < res.x){
+        res = colorCheck(res, vec2(calcBulbDist(pos - vec3(56.0, 1.1, 6.0)), 35.0));
+    }
 
+    if(sphereSDF(pos - vec3(62.0, 1.1, 6.0), 1.3) < res.x){
+        res = colorCheck(res, vec2(mengerBulbSdf(pos - vec3(62.0, 1.1, 6.0), 8), 35.0));
+    }
 
 
     return res;

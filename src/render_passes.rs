@@ -230,6 +230,9 @@ impl FractalRenderPass{
     pub fn draw(&self){
         self.ctx.bind_framebuffer(gl::FRAMEBUFFER, Some(&self.framebuffer));
 
+
+        self.ctx.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT
+                    | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
         let buffers = js_sys::Uint32Array::new(&JsValue::from(1));
         buffers.copy_from(&[gl::COLOR_ATTACHMENT0]);
         self.ctx.draw_buffers(&buffers);

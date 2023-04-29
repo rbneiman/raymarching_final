@@ -68,7 +68,7 @@ float calcBulbDist(vec3 pos){
         float a = 8.0*atan( w.x, w.z );
         w = pos + pow(r,8.0) * vec3( sin(b)*sin(a), cos(b), sin(b)*cos(a) );
         m = dot(w,w);
-		if( m > 2560.0 )
+		if( m > 1200.0 )
             break;
 	}
 	return BULB_SCALE * 0.25*log(m)*sqrt(m)/dz;
