@@ -1,9 +1,9 @@
 # You must change these to your own details.
 [package]
-name = "webgl_thing"
-description = "My super awesome Rust, WebAssembly, and Webpack project!"
+name = "computer_graphics_final"
+description = "A webasembly project that renders a scene using raymarching."
 version = "0.1.0"
-authors = ["You <you@example.com>"]
+authors = ["alecneiman@gmail.com"]
 categories = ["wasm"]
 readme = "README.md"
 edition = "2018"

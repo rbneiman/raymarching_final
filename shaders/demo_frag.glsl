@@ -124,7 +124,22 @@ vec2 sceneSDF(vec3 pos){
         float(sin(pos.x*PI_2_10)*sin(pos.z*PI_2_10) < 0.0)
     );
 
-    if(boxSDF(pos - vec3(0.0, 0.0, 6.0), vec3(31.0, 1.0, 6.0)) < res.x){
+    if(cubeSDF(pos - vec3(48.0, 1.1, 6.0)) < res.x){
+        res = colorCheck(res, vec2(mengerSpongeSdf(pos - vec3(48.0, 1.1, 6.0), 8), 32.0));
+    }
+
+    if(sphereSDF(pos - vec3(56.0, 1.1, 6.0), 1.3) < res.x){
+        res = colorCheck(res, vec2(calcBulbDist(pos - vec3(56.0, 1.1, 6.0)), 35.0));
+    }
+
+    if(sphereSDF(pos - vec3(62.0, 1.1, 6.0), 1.3) < res.x){
+        res = colorCheck(res, vec2(mengerBulbSdf(pos - vec3(62.0, 1.1, 6.0), 8), 35.0));
+    }
+
+    if(pos.z < -80.0)
+        pos.z = mod(pos.z, 10.0);
+
+    if(boxSDF(pos - vec3(0.0, 0.0, 6.0), vec3(31.0, 2.0, 3.0)) < res.x){
         res = colorCheck(res, vec2(sphereSDF(pos - vec3(0.0, 1.1, 6.0), 1.0), 23.0));
         res = colorCheck(res, vec2(boxSDF(pos - vec3(6.0, 2.2, 6.0), vec3(1.0, 2.0, 1.0)), 25.0));
         res = colorCheck(res, vec2(torus(pos - vec3(12.0, 1.0, 6.0), vec2(1.5, 0.5)), 27.0));
@@ -139,17 +154,7 @@ vec2 sceneSDF(vec3 pos){
     if(cubeSDF(pos - vec3(42.0, 1.1, 6.0)) < res.x){
         res = colorCheck(res, vec2(mengerSpongeSdf(pos - vec3(42.0, 1.1, 6.0), 2), 32.0));
     }
-    if(cubeSDF(pos - vec3(48.0, 1.1, 6.0)) < res.x){
-        res = colorCheck(res, vec2(mengerSpongeSdf(pos - vec3(48.0, 1.1, 6.0), 8), 32.0));
-    }
 
-    if(sphereSDF(pos - vec3(56.0, 1.1, 6.0), 1.3) < res.x){
-        res = colorCheck(res, vec2(calcBulbDist(pos - vec3(56.0, 1.1, 6.0)), 35.0));
-    }
-
-    if(sphereSDF(pos - vec3(62.0, 1.1, 6.0), 1.3) < res.x){
-        res = colorCheck(res, vec2(mengerBulbSdf(pos - vec3(62.0, 1.1, 6.0), 8), 35.0));
-    }
 
 
     return res;
@@ -202,7 +207,7 @@ float rayMarch(vec3 rayPos, vec3 rayDir, out vec3 col){
 
 vec3 sceneNormal(vec3 pos){
     vec3 col;
-    const float epsilon = 0.001;
+    const float epsilon = 0.0001;
     const vec2 delta = vec2(1.0, -1.0);
     return normalize(vec3(
         delta.xyy * sceneSDF(pos + delta.xyy * epsilon).x +
