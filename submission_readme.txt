@@ -8,5 +8,7 @@ located in the ./dist folder.
 
 The writeup for this project is located at "./graphics final report.pdf"
 
+I completed the UT course instructor survey for this class.
 
 The repository for this project is publicly hosted at https://github.com/rbneiman/raymarching_final
+
